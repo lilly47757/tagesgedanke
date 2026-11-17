@@ -146,8 +146,7 @@ button { touch-action: manipulation; }
 /* Merkliste */
 .sheet {
   position: fixed; inset: 0 0 calc(-1 * (env(safe-area-inset-bottom, 0px) + 120px)) 0; z-index: 5; display: flex; flex-direction: column; overflow-y: auto;
-  background: color-mix(in srgb, var(--bg) 72%, transparent);
-  backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
   padding-left: max(28px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px));
   padding-block: calc(40px + env(safe-area-inset-top, 0px)) calc(230px + 2 * env(safe-area-inset-bottom, 0px));
   animation: up .45s cubic-bezier(.2, .8, .2, 1) both;
@@ -156,6 +155,7 @@ button { touch-action: manipulation; }
 @keyframes up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 .sheet-inner { max-width: 600px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.version { margin: 28px 0 0; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); text-align: center; }
 .sheet-close {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 6;
   bottom: calc(18px + env(safe-area-inset-bottom, 0px)); min-height: 50px; padding: 0 24px;
@@ -262,6 +262,7 @@ button { touch-action: manipulation; }
       <button class="ic" id="close" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div id="favs"></div>
+    <p class="version" id="version"></p>
   </div>
 </div>
 <button class="pill sheet-close" id="close2" hidden>Schließen</button>
@@ -698,7 +699,14 @@ $("copy").onclick = () => {
 };
 $("list").onclick = () => { renderFavs(); $("sheet").hidden = false; $("close2").hidden = false; $("sheet").scrollTop = 0; };
 const closeSheet = () => { $("sheet").hidden = true; $("close2").hidden = true; };
-$("close2").onclick = closeSheet;
+// Zusätzlich zum Klick direkt auf das Loslassen des Fingers reagieren
+function onTap(el, fn) {
+  el.addEventListener("click", fn);
+  el.addEventListener("touchend", e => { e.preventDefault(); fn(); }, { passive: false });
+}
+onTap($("close2"), closeSheet);
+onTap($("close"), closeSheet);
+onTap(document.querySelector(".sheet-head h2"), closeSheet);
 // Nach unten wischen schließt die Merkliste
 let shy = null;
 $("sheet").addEventListener("touchstart", e => { shy = $("sheet").scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
@@ -706,7 +714,6 @@ $("sheet").addEventListener("touchend", e => { if (shy !== null && e.changedTouc
 const toToday = () => { if (offset !== 0) { offset = 0; render(); } };
 $("today").onclick = toToday;
 document.querySelector(".date").onclick = toToday;
-$("close").onclick = () => closeSheet();
 
 
 /* ---------- Infos zu Person und Werk ---------- */
@@ -777,6 +784,20 @@ document.addEventListener("visibilitychange", () => {
 });
 document.fonts?.ready.then(() => render(false));
 render();
+
+/* ---------- Updates ---------- */
+const APP_VERSION = "6";
+$("version").textContent = "Version " + APP_VERSION;
+async function checkUpdate() {
+  if (location.protocol !== "https:") return;
+  try {
+    const r = await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" });
+    const m = (await r.text()).match(/const APP_VERSION = "([^"]+)"/);
+    if (m && m[1] !== APP_VERSION) location.reload();
+  } catch {}
+}
+checkUpdate();
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 </script>
 
 </body>
