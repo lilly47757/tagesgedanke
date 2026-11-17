@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tagesgedanke">
+<meta name="theme-color" content="#f6f1ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14121a" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<style>
+html { -webkit-text-size-adjust: 100%; color-scheme: light; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+</style>
+<title>Tagesgedanke</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500&display=swap">
+<style>
+/* Layout: ein ruhiger Vollbild-Moment – weiche Aura-Farbflächen mit Filmkorn, das Zitat mittig in eleganter Serif,
+   oben nur das Datum, unten eine schwebende Glasleiste. Die Aura-Farben wechseln täglich (per JS gesetzt). */
+:root {
+  --bg: #f6f1ec;
+  --ink: #2b2622;
+  --muted: rgba(43, 38, 34, .55);
+  --glass: rgba(255, 255, 255, .42);
+  --glass-line: rgba(255, 255, 255, .7);
+  --blob-op: .9;
+  --c1: #ffc6a8; --c2: #d9c2f0; --c3: #f7e1a6; --c4: #f2b8c6;
+  --font-quote: "Cormorant Garamond", "Cormorant", Garamond, "Times New Roman", serif;
+  --font-ui: "Inter", -apple-system, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14121a; --ink: #f3eee9; --muted: rgba(243, 238, 233, .55);
+    --glass: rgba(255, 255, 255, .08); --glass-line: rgba(255, 255, 255, .16); --blob-op: .42; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14121a; --ink: #f3eee9; --muted: rgba(243, 238, 233, .55);
+  --glass: rgba(255, 255, 255, .08); --glass-line: rgba(255, 255, 255, .16); --blob-op: .42; color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-ui);
+  overflow: hidden; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
+  transition: background-color .8s ease;
+}
+
+/* Aura */
+.aura { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+.blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: var(--blob-op); transition: background-color 1.2s ease; will-change: transform; }
+.b1 { width: 75vmax; height: 75vmax; left: -30vmax; top: -25vmax; background: var(--c1); animation: drift1 26s ease-in-out infinite alternate; }
+.b2 { width: 65vmax; height: 65vmax; right: -28vmax; top: 10vh; background: var(--c2); animation: drift2 32s ease-in-out infinite alternate; }
+.b3 { width: 60vmax; height: 60vmax; left: -10vmax; bottom: -32vmax; background: var(--c3); animation: drift3 29s ease-in-out infinite alternate; }
+.b4 { width: 38vmax; height: 38vmax; right: -6vmax; bottom: 4vh; background: var(--c4); animation: drift1 35s ease-in-out infinite alternate-reverse; }
+@keyframes drift1 { to { transform: translate(8vmax, 10vmax) scale(1.1); } }
+@keyframes drift2 { to { transform: translate(-10vmax, 8vmax) scale(.92); } }
+@keyframes drift3 { to { transform: translate(12vmax, -8vmax) scale(1.08); } }
+.grain {
+  position: fixed; inset: -50%; z-index: 1; pointer-events: none; opacity: .16; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Bühne */
+.stage {
+  position: relative; z-index: 2; height: 100%; box-sizing: border-box;
+  display: grid; grid-template-rows: auto 1fr auto; max-width: 640px; margin: 0 auto;
+  padding-left: max(28px, env(safe-area-inset-left, 0px));
+  padding-right: max(28px, env(safe-area-inset-right, 0px));
+  padding-block: calc(22px + env(safe-area-inset-top, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)); touch-action: pan-y;
+}
+.date { text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.date .day { font-family: var(--font-quote); font-style: italic; font-size: 22px; letter-spacing: .01em; }
+.date .meta { font-size: 10.5px; font-weight: 500; letter-spacing: .28em; text-transform: uppercase; color: var(--muted); }
+
+.center { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 28px; min-height: 0; }
+blockquote {
+  margin: 0; font-family: var(--font-quote); font-weight: 500; line-height: 1.16; letter-spacing: -.005em;
+  font-size: 38px; text-wrap: balance; max-width: 22ch;
+}
+.ornament { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+.ornament i { width: 34px; height: 1px; background: currentColor; opacity: .6; }
+.ornament b { font-weight: 400; font-size: 9px; }
+.author { font-size: 11.5px; font-weight: 500; letter-spacing: .26em; text-transform: uppercase; }
+.source { font-family: var(--font-quote); font-style: italic; font-size: 17px; color: var(--muted); margin-top: -18px; }
+
+.fade { animation: fade .9s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes fade { from { opacity: 0; filter: blur(6px); transform: translateY(8px); } to { opacity: 1; filter: none; transform: none; } }
+
+/* Glasleiste */
+.dock {
+  justify-self: center; display: flex; align-items: center; gap: 4px; padding: 6px;
+  background: var(--glass); border: 1px solid var(--glass-line); border-radius: 999px;
+  backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 10px 30px -18px rgba(40, 20, 10, .35);
+}
+.ic {
+  width: 46px; height: 46px; border-radius: 50%; border: 0; background: transparent; color: var(--ink);
+  display: grid; place-items: center; cursor: pointer; transition: background-color .2s, opacity .2s;
+}
+.ic svg { width: 21px; height: 21px; }
+.ic:hover { background: var(--glass); }
+.ic:disabled { opacity: .25; cursor: default; background: transparent; }
+.ic:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 1px; }
+.ic[aria-pressed="true"] { color: #d0506b; }
+.sep { width: 1px; height: 20px; background: var(--glass-line); margin: 0 2px; }
+
+/* Merkliste */
+.sheet {
+  position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column; overflow-y: auto;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  padding-left: max(28px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px));
+  padding-block: calc(22px + env(safe-area-inset-top, 0px)) calc(30px + env(safe-area-inset-bottom, 0px));
+  animation: up .45s cubic-bezier(.2, .8, .2, 1) both;
+}
+.sheet[hidden] { display: none; }
+@keyframes up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.sheet-inner { max-width: 600px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.sheet-head h2 { margin: 0; font-family: var(--font-quote); font-style: italic; font-weight: 400; font-size: 34px; }
+.item { padding: 22px 0; border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); display: flex; flex-direction: column; gap: 10px; }
+.item p { margin: 0; font-family: var(--font-quote); font-size: 23px; line-height: 1.25; }
+.item .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.item .row span { font-size: 10.5px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
+.item .row button { background: none; border: 0; color: var(--muted); font: 400 13px var(--font-ui); cursor: pointer; padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; }
+.empty { font-family: var(--font-quote); font-style: italic; font-size: 22px; color: var(--muted); line-height: 1.4; padding-top: 20px; }
+
+.toast {
+  position: fixed; left: 50%; z-index: 9; top: calc(22px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -8px);
+  background: var(--glass); border: 1px solid var(--glass-line); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  font-size: 11px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; padding: 10px 18px; border-radius: 999px;
+  opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (prefers-reduced-motion: reduce) { .blob { animation: none; } .fade, .sheet { animation: none; } }
+/* Antippbare Namen */
+.tap { background: none; border: 0; color: inherit; cursor: pointer; padding: 4px 6px; border-radius: 8px; transition: background-color .2s; }
+.tap::after { content: ""; display: block; height: 1px; margin: 3px auto 0; width: 0; background: currentColor; opacity: .5; transition: width .3s ease; }
+.tap:hover::after, .tap:focus-visible::after { width: 100%; }
+@media (hover: none) { .tap::after { width: 36%; opacity: .3; } }
+.tap:hover { background: var(--glass); }
+.tap:focus-visible { outline: 1px solid var(--muted); }
+.author.tap { font-family: var(--font-ui); }
+.author.tap::before { content: ""; }
+.source.tap { margin-top: -22px; }
+
+/* Infokarte */
+.info { position: fixed; inset: 0; z-index: 8; display: flex; align-items: flex-end; justify-content: center; }
+.info[hidden] { display: none; }
+.info-backdrop { position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 35%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: fadein .3s ease both; }
+.info-card {
+  position: relative; width: 100%; max-width: 560px; box-sizing: border-box; max-height: 82vh; overflow-y: auto;
+  margin: 0 max(10px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--bg) 70%, transparent); border: 1px solid var(--glass-line); border-radius: 28px;
+  backdrop-filter: blur(30px) saturate(150%); -webkit-backdrop-filter: blur(30px) saturate(150%);
+  box-shadow: 0 30px 60px -30px rgba(30, 15, 10, .45);
+  padding: 10px 24px 26px; animation: up .45s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.grip { width: 38px; height: 4px; border-radius: 4px; background: var(--muted); opacity: .35; margin: 0 auto 6px; }
+.info-head { display: flex; justify-content: space-between; align-items: center; }
+.info-kicker { font-size: 10.5px; font-weight: 500; letter-spacing: .28em; text-transform: uppercase; color: var(--muted); }
+.ic.small { width: 38px; height: 38px; margin-right: -10px; }
+.ic.small svg { width: 18px; height: 18px; }
+.info-title { margin: 6px 0 0; font-family: var(--font-quote); font-weight: 500; font-size: 36px; line-height: 1.05; text-wrap: balance; }
+.info-title.work { font-style: italic; }
+.info-meta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 5px 11px; border-radius: 999px; background: var(--glass); border: 1px solid var(--glass-line); }
+.info-text { margin: 18px 0 0; font-size: 15.5px; line-height: 1.62; max-width: 62ch; }
+.info-more { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+.info-more[hidden] { display: none; }
+.info-more h3 { margin: 0; font-size: 10.5px; font-weight: 500; letter-spacing: .28em; text-transform: uppercase; color: var(--muted); }
+.more-q {
+  text-align: left; background: var(--glass); border: 1px solid var(--glass-line); border-radius: 16px; padding: 14px 16px;
+  font-family: var(--font-quote); font-size: 19px; line-height: 1.3; color: var(--ink);
+}
+.more-q span { display: block; margin-top: 6px; font-family: var(--font-ui); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { .info-card, .info-backdrop { animation: none; } }
+</style>
+
+</head>
+<body>
+<div class="aura" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div></div>
+<div class="grain" aria-hidden="true"></div>
+
+<main class="stage" id="stage">
+  <header class="date">
+    <div class="day" id="day">Dienstag, 17. November</div>
+    <div class="meta" id="meta">Tag 321 · Heute</div>
+  </header>
+
+  <section class="center" id="center">
+    <blockquote id="quote">Habe Mut, dich deines eigenen Verstandes zu bedienen.</blockquote>
+    <div class="ornament" aria-hidden="true"><i></i><b>✦</b><i></i></div>
+    <button class="author tap" id="author" aria-haspopup="dialog">Immanuel Kant</button>
+    <button class="source tap" id="source" aria-haspopup="dialog">Was ist Aufklärung?</button>
+  </section>
+
+  <nav class="dock">
+    <button class="ic" id="prev" aria-label="Vorheriger Tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="sep"></span>
+    <button class="ic" id="fav" aria-label="Merken" aria-pressed="false"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path id="heart" fill="none" d="M12 20s-7.5-4.6-9-9.3C2 7.4 4.1 4.5 7.3 4.5c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 3.2 0 5.3 2.9 4.3 6.2C19.5 15.4 12 20 12 20z"/></svg></button>
+    <button class="ic" id="copy" aria-label="Kopieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V7a2.5 2.5 0 0 0-2.5-2.5H7A2.5 2.5 0 0 0 4.5 7v6A2.5 2.5 0 0 0 7 15.5h1.5"/></svg></button>
+    <button class="ic" id="list" aria-label="Gemerkte Zitate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h9"/></svg></button>
+    <span class="sep"></span>
+    <button class="ic" id="next" aria-label="Nächster Tag" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+  </nav>
+</main>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-head"><h2>Gemerkt</h2>
+      <button class="ic" id="close" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div id="favs"></div>
+  </div>
+</div>
+<div class="info" id="info" hidden>
+  <div class="info-backdrop" id="info-backdrop"></div>
+  <section class="info-card" role="dialog" aria-modal="true" aria-labelledby="info-title">
+    <div class="grip" aria-hidden="true"></div>
+    <div class="info-head">
+      <div class="info-kicker" id="info-kicker">Person</div>
+      <button class="ic small" id="info-close" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <h2 class="info-title" id="info-title">Immanuel Kant</h2>
+    <div class="info-meta" id="info-meta"></div>
+    <p class="info-text" id="info-text"></p>
+    <div class="info-more" id="info-more"></div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const Q = [
+  // Antike – Stoa
+  ["Nicht die Dinge selbst beunruhigen die Menschen, sondern ihre Urteile über die Dinge.", "Epiktet", "Handbüchlein der Moral, 5"],
+  ["Von den Dingen stehen die einen in unserer Macht, die anderen nicht.", "Epiktet", "Handbüchlein der Moral, 1"],
+  ["Nicht weil es schwer ist, wagen wir es nicht, sondern weil wir es nicht wagen, ist es schwer.", "Seneca", "Briefe an Lucilius, 104"],
+  ["Es ist nicht wenig Zeit, die wir haben, sondern es ist viel, die wir nicht nutzen.", "Seneca", "Von der Kürze des Lebens"],
+  ["Wer überall ist, ist nirgends.", "Seneca", "Briefe an Lucilius, 2"],
+  ["Während man es aufschiebt, eilt das Leben vorüber.", "Seneca", "Briefe an Lucilius, 1"],
+  ["Verweile nicht länger bei der Frage, was einen guten Menschen ausmacht. Sei einer.", "Marc Aurel", "Selbstbetrachtungen, X 16"],
+  ["Die beste Art, sich zu rächen, ist, nicht Gleiches mit Gleichem zu vergelten.", "Marc Aurel", "Selbstbetrachtungen, VI 6"],
+  ["Bald wirst du alles vergessen haben, bald werden alle dich vergessen haben.", "Marc Aurel", "Selbstbetrachtungen, VII 21"],
+  ["Die Seele wird von der Farbe ihrer Gedanken gefärbt.", "Marc Aurel", "Selbstbetrachtungen, V 16"],
+  // Antike – Griechen & Römer
+  ["Ein Leben ohne Selbstprüfung ist nicht lebenswert.", "Sokrates", "nach Platon, Apologie"],
+  ["Unrecht tun ist schlimmer als Unrecht leiden.", "Sokrates", "nach Platon, Gorgias"],
+  ["Man kann nicht zweimal in denselben Fluss steigen.", "Heraklit", "Fragment B 91"],
+  ["Der Charakter ist des Menschen Schicksal.", "Heraklit", "Fragment B 119"],
+  ["Eine Schwalbe macht noch keinen Frühling.", "Aristoteles", "Nikomachische Ethik, I 6"],
+  ["Der Mensch ist von Natur aus ein staatenbildendes Lebewesen.", "Aristoteles", "Politik, I 2"],
+  ["Geh mir ein wenig aus der Sonne.", "Diogenes von Sinope", "zu Alexander dem Großen, überliefert bei Diogenes Laertios"],
+  ["Der Tod geht uns nichts an. Denn solange wir sind, ist der Tod nicht da, und wenn der Tod da ist, sind wir nicht mehr.", "Epikur", "Brief an Menoikeus"],
+  ["Wenn du einen Garten und eine Bibliothek hast, wird es dir an nichts fehlen.", "Cicero", "Briefe an Freunde, IX 4"],
+  ["Pflücke den Tag und vertraue möglichst wenig auf den folgenden.", "Horaz", "Oden, I 11"],
+  ["Was also ist die Zeit? Wenn mich niemand danach fragt, weiß ich es; will ich es einem Fragenden erklären, weiß ich es nicht.", "Augustinus", "Bekenntnisse, XI 14"],
+  // Asien
+  ["Auch eine Reise von tausend Meilen beginnt mit dem ersten Schritt.", "Laozi", "Daodejing, 64"],
+  ["Wer andere kennt, ist klug. Wer sich selbst kennt, ist weise.", "Laozi", "Daodejing, 33"],
+  ["Nichts auf der Welt ist weicher und schwächer als das Wasser. Und doch kommt nichts ihm gleich, wenn es das Harte und Starke bezwingt.", "Laozi", "Daodejing, 78"],
+  ["Lernen, ohne zu denken, ist vergeblich. Denken, ohne zu lernen, ist gefährlich.", "Konfuzius", "Gespräche, II 15"],
+  ["Was du selbst nicht wünschst, das tue auch anderen nicht an.", "Konfuzius", "Gespräche, XV 24"],
+  ["Der Edle verlangt alles von sich selbst, der Gemeine verlangt alles von den anderen.", "Konfuzius", "Gespräche, XV 21"],
+  ["Alle Menschen kennen den Nutzen des Nützlichen, aber niemand kennt den Nutzen des Nutzlosen.", "Zhuangzi", "Zhuangzi, Kapitel 4"],
+  ["Walk as if you are kissing the Earth with your feet.", "Thích Nhất Hạnh", "Peace Is Every Step"],
+  // Neuzeit
+  ["Ich denke, also bin ich.", "René Descartes", "Abhandlung über die Methode"],
+  ["Das Herz hat seine Gründe, die der Verstand nicht kennt.", "Blaise Pascal", "Gedanken"],
+  ["Das ganze Unglück der Menschen rührt allein daher, dass sie nicht ruhig in einem Zimmer zu bleiben vermögen.", "Blaise Pascal", "Gedanken"],
+  ["Alles Vortreffliche ist ebenso schwierig wie selten.", "Baruch de Spinoza", "Ethik, letzter Satz"],
+  ["Die größte Sache der Welt ist, zu wissen, wie man sich selbst gehört.", "Michel de Montaigne", "Essais, I 39"],
+  ["Man muss seinen Garten bestellen.", "Voltaire", "Candide"],
+  ["Der Mensch ist frei geboren, und überall liegt er in Ketten.", "Jean-Jacques Rousseau", "Vom Gesellschaftsvertrag"],
+  ["Wissen ist Macht.", "Francis Bacon", "Meditationes sacrae"],
+  ["Reason is, and ought only to be the slave of the passions.", "David Hume", "A Treatise of Human Nature"],
+  ["Habe Mut, dich deines eigenen Verstandes zu bedienen!", "Immanuel Kant", "Beantwortung der Frage: Was ist Aufklärung?"],
+  ["Zwei Dinge erfüllen das Gemüt mit immer neuer und zunehmender Bewunderung und Ehrfurcht: der bestirnte Himmel über mir und das moralische Gesetz in mir.", "Immanuel Kant", "Kritik der praktischen Vernunft"],
+  ["Handle nur nach derjenigen Maxime, durch die du zugleich wollen kannst, dass sie ein allgemeines Gesetz werde.", "Immanuel Kant", "Grundlegung zur Metaphysik der Sitten"],
+  ["Nichts Großes ist in der Welt ohne Leidenschaft vollbracht worden.", "G. W. F. Hegel", "Vorlesungen über die Philosophie der Geschichte"],
+  ["Die Eule der Minerva beginnt erst mit der einbrechenden Dämmerung ihren Flug.", "G. W. F. Hegel", "Grundlinien der Philosophie des Rechts"],
+  ["Der Mensch kann zwar tun, was er will, aber er kann nicht wollen, was er will.", "Arthur Schopenhauer", "Preisschrift über die Freiheit des Willens"],
+  ["Talent trifft ein Ziel, das kein anderer treffen kann; Genie trifft ein Ziel, das kein anderer sehen kann.", "Arthur Schopenhauer", "Die Welt als Wille und Vorstellung"],
+  ["Ich kann freilich nicht sagen, ob es besser werden wird, wenn es anders wird; aber so viel kann ich sagen: Es muss anders werden, wenn es gut werden soll.", "Georg Christoph Lichtenberg", "Sudelbücher"],
+  ["Wenn ein Buch und ein Kopf zusammenstoßen und es klingt hohl, ist das allemal im Buch?", "Georg Christoph Lichtenberg", "Sudelbücher"],
+  ["Das Leben kann nur rückwärts verstanden, muss aber vorwärts gelebt werden.", "Søren Kierkegaard", "Tagebücher, 1843"],
+  ["Die Angst ist der Schwindel der Freiheit.", "Søren Kierkegaard", "Der Begriff Angst"],
+  ["Die Philosophen haben die Welt nur verschieden interpretiert; es kommt aber darauf an, sie zu verändern.", "Karl Marx", "Thesen über Feuerbach"],
+  ["It is better to be a human being dissatisfied than a pig satisfied; better to be Socrates dissatisfied than a fool satisfied.", "John Stuart Mill", "Utilitarianism"],
+  // Nietzsche
+  ["Ohne Musik wäre das Leben ein Irrtum.", "Friedrich Nietzsche", "Götzen-Dämmerung"],
+  ["Hat man sein Warum des Lebens, so verträgt man sich fast mit jedem Wie.", "Friedrich Nietzsche", "Götzen-Dämmerung"],
+  ["Was mich nicht umbringt, macht mich stärker.", "Friedrich Nietzsche", "Götzen-Dämmerung"],
+  ["Man muss noch Chaos in sich haben, um einen tanzenden Stern gebären zu können.", "Friedrich Nietzsche", "Also sprach Zarathustra"],
+  ["Werde, der du bist.", "Friedrich Nietzsche", "nach Pindar, in Die fröhliche Wissenschaft"],
+  // 20. Jahrhundert
+  ["Die Grenzen meiner Sprache bedeuten die Grenzen meiner Welt.", "Ludwig Wittgenstein", "Tractatus logico-philosophicus, 5.6"],
+  ["Wovon man nicht sprechen kann, darüber muss man schweigen.", "Ludwig Wittgenstein", "Tractatus logico-philosophicus, 7"],
+  ["Die Philosophie ist ein Kampf gegen die Verhexung unseres Verstandes durch die Mittel unserer Sprache.", "Ludwig Wittgenstein", "Philosophische Untersuchungen, § 109"],
+  ["Es gibt kein richtiges Leben im falschen.", "Theodor W. Adorno", "Minima Moralia"],
+  ["Niemand hat das Recht zu gehorchen.", "Hannah Arendt", "Gespräch mit Joachim Fest, 1964"],
+  ["Man muss sich Sisyphos als einen glücklichen Menschen vorstellen.", "Albert Camus", "Der Mythos des Sisyphos"],
+  ["Mitten im Winter erfuhr ich endlich, dass in mir ein unbesiegbarer Sommer liegt.", "Albert Camus", "Heimkehr nach Tipasa"],
+  ["Der Mensch ist zur Freiheit verurteilt.", "Jean-Paul Sartre", "Der Existentialismus ist ein Humanismus"],
+  ["Man kommt nicht als Frau zur Welt, man wird es.", "Simone de Beauvoir", "Das andere Geschlecht"],
+  ["Aufmerksamkeit ist die seltenste und reinste Form der Großzügigkeit.", "Simone Weil", "Brief an Joë Bousquet, 1942"],
+  ["Dem Menschen kann alles genommen werden, nur nicht die letzte der menschlichen Freiheiten: sich zu den gegebenen Bedingungen so oder so einzustellen.", "Viktor Frankl", "… trotzdem Ja zum Leben sagen"],
+  ["Ich bin Leben, das leben will, inmitten von Leben, das leben will.", "Albert Schweitzer", "Kultur und Ethik"],
+  ["Optimismus ist Pflicht.", "Karl Popper", "Alles Leben ist Problemlösen"],
+  ["Freiheit ist immer Freiheit des Andersdenkenden.", "Rosa Luxemburg", "Zur russischen Revolution"],
+  ["The good life is one inspired by love and guided by knowledge.", "Bertrand Russell", "What I Believe"],
+  ["To be able to fill leisure intelligently is the last product of civilization.", "Bertrand Russell", "The Conquest of Happiness"],
+  ["My first act of free will shall be to believe in free will.", "William James", "Tagebuch, 1870"],
+  ["Love is the extremely difficult realisation that something other than oneself is real.", "Iris Murdoch", "The Sublime and the Good"],
+  ["This is the real secret of life – to be completely engaged with what you are doing in the here and now.", "Alan Watts", "The Essence of Alan Watts"],
+  // Dichter & Denkerinnen (Deutsch)
+  ["Es irrt der Mensch, solang er strebt.", "Johann Wolfgang von Goethe", "Faust I"],
+  ["Es ist nicht genug zu wissen, man muss auch anwenden; es ist nicht genug zu wollen, man muss auch tun.", "Johann Wolfgang von Goethe", "Wilhelm Meisters Wanderjahre"],
+  ["Edel sei der Mensch, hilfreich und gut!", "Johann Wolfgang von Goethe", "Das Göttliche"],
+  ["Der Mensch spielt nur, wo er in voller Bedeutung des Wortes Mensch ist, und er ist nur da ganz Mensch, wo er spielt.", "Friedrich Schiller", "Über die ästhetische Erziehung des Menschen"],
+  ["Wo aber Gefahr ist, wächst das Rettende auch.", "Friedrich Hölderlin", "Patmos"],
+  ["Wohin gehn wir denn? Immer nach Hause.", "Novalis", "Heinrich von Ofterdingen"],
+  ["Sei geduldig gegen alles Ungelöste in deinem Herzen und versuche, die Fragen selbst liebzuhaben.", "Rainer Maria Rilke", "Briefe an einen jungen Dichter"],
+  ["Und jedem Anfang wohnt ein Zauber inne, der uns beschützt und der uns hilft, zu leben.", "Hermann Hesse", "Stufen"],
+  ["Ein Buch muss die Axt sein für das gefrorene Meer in uns.", "Franz Kafka", "Brief an Oskar Pollak, 1904"],
+  ["Wer nichts weiß, muss alles glauben.", "Marie von Ebner-Eschenbach", "Aphorismen"],
+  ["Es gibt nichts Gutes, außer: Man tut es.", "Erich Kästner", "Moral"],
+  ["Im Grunde sind es immer die Verbindungen mit Menschen, die dem Leben seinen Wert geben.", "Wilhelm von Humboldt", "Briefe an eine Freundin"],
+  ["Von guten Mächten wunderbar geborgen, erwarten wir getrost, was kommen mag.", "Dietrich Bonhoeffer", "Von guten Mächten, 1944"],
+  ["Die Schönheit wird die Welt retten.", "Fjodor Dostojewski", "Der Idiot"],
+  ["Man braucht nichts im Leben zu fürchten, man muss nur alles verstehen.", "Marie Curie", "zugeschrieben"],
+  ["Phantasie ist wichtiger als Wissen, denn Wissen ist begrenzt.", "Albert Einstein", "Interview, 1929"],
+  // Englischsprachig
+  ["The important thing is not to stop questioning.", "Albert Einstein", "LIFE Magazine, 1955"],
+  ["There is nothing either good or bad, but thinking makes it so.", "William Shakespeare", "Hamlet"],
+  ["No man is an island, entire of itself.", "John Donne", "Devotions upon Emergent Occasions"],
+  ["To see a World in a Grain of Sand / And a Heaven in a Wild Flower.", "William Blake", "Auguries of Innocence"],
+  ["A thing of beauty is a joy for ever.", "John Keats", "Endymion"],
+  ["Trust thyself: every heart vibrates to that iron string.", "Ralph Waldo Emerson", "Self-Reliance"],
+  ["Nothing great was ever achieved without enthusiasm.", "Ralph Waldo Emerson", "Circles"],
+  ["The years teach much which the days never know.", "Ralph Waldo Emerson", "Experience"],
+  ["The mass of men lead lives of quiet desperation.", "Henry David Thoreau", "Walden"],
+  ["Rather than love, than money, than fame, give me truth.", "Henry David Thoreau", "Walden"],
+  ["Do I contradict myself? Very well then I contradict myself, (I am large, I contain multitudes.)", "Walt Whitman", "Song of Myself"],
+  ["“Hope” is the thing with feathers – that perches in the soul.", "Emily Dickinson", "Gedicht 254"],
+  ["We are all in the gutter, but some of us are looking at the stars.", "Oscar Wilde", "Lady Windermere’s Fan"],
+  ["No need to hurry. No need to sparkle. No need to be anybody but oneself.", "Virginia Woolf", "A Room of One’s Own"],
+  ["To see what is in front of one’s nose needs a constant struggle.", "George Orwell", "In Front of Your Nose"],
+  ["All we have to decide is what to do with the time that is given us.", "J. R. R. Tolkien", "The Fellowship of the Ring"],
+  ["Ever tried. Ever failed. No matter. Try again. Fail again. Fail better.", "Samuel Beckett", "Worstward Ho"],
+  ["Not everything that is faced can be changed, but nothing can be changed until it is faced.", "James Baldwin", "As Much Truth As One Can Bear"],
+  ["Darkness cannot drive out darkness; only light can do that. Hate cannot drive out hate; only love can do that.", "Martin Luther King Jr.", "Strength to Love"],
+  ["We may encounter many defeats but we must not be defeated.", "Maya Angelou", "zugeschrieben"],
+  ["Tell me, what is it you plan to do with your one wild and precious life?", "Mary Oliver", "The Summer Day"],
+  ["How we spend our days is, of course, how we spend our lives.", "Annie Dillard", "The Writing Life"],
+  ["It is good to have an end to journey toward; but it is the journey that matters, in the end.", "Ursula K. Le Guin", "The Left Hand of Darkness"],
+  ["If there’s a book that you want to read, but it hasn’t been written yet, then you must write it.", "Toni Morrison", "Rede, 1981"],
+  ["Caring for myself is not self-indulgence, it is self-preservation, and that is an act of political warfare.", "Audre Lorde", "A Burst of Light"],
+  ["The moment we choose to love we begin to move against domination, against oppression.", "bell hooks", "Outlaw Culture"],
+  ["For small creatures such as we the vastness is bearable only through love.", "Carl Sagan", "Contact"],
+  ["The first principle is that you must not fool yourself – and you are the easiest person to fool.", "Richard Feynman", "Cargo Cult Science, 1974"]
+];
+
+// Personen: [Lebensdaten, Herkunft/Rolle, Beschreibung]
+const A = {
+  "Epiktet": ["um 50 – um 138 n. Chr.", "Griechischer Stoiker", "Als Sklave in Hierapolis geboren, später freigelassen. Er gründete in Nikopolis eine Philosophenschule. Selbst schrieb er nichts; sein Schüler Arrian hielt seine Lehrgespräche fest. Sein Kerngedanke: Frei ist, wer unterscheiden kann, was in seiner Macht steht und was nicht."],
+  "Seneca": ["um 1 v. Chr. – 65 n. Chr.", "Römischer Stoiker und Dramatiker", "Philosoph, Schriftsteller und Erzieher des jungen Kaisers Nero, später einer der reichsten Männer Roms. Nero zwang ihn zum Suizid. Seine Briefe über Zeit, Tod und Freundschaft gehören bis heute zu den meistgelesenen Texten der Antike."],
+  "Marc Aurel": ["121 – 180 n. Chr.", "Römischer Kaiser und Stoiker", "Regierte das Römische Reich von 161 bis 180, oft aus Feldlagern an der Donau. Abends schrieb er auf Griechisch Notizen an sich selbst, nie für die Öffentlichkeit gedacht. Er gilt als Inbegriff des Philosophen auf dem Thron."],
+  "Sokrates": ["469 – 399 v. Chr.", "Athener Philosoph", "Schrieb kein einziges Wort; wir kennen ihn vor allem aus den Dialogen seines Schülers Platon. Er verwickelte Menschen auf dem Marktplatz in Gespräche, die ihr vermeintliches Wissen erschütterten. Wegen Gottlosigkeit und Verführung der Jugend wurde er zum Tod durch den Schierlingsbecher verurteilt."],
+  "Heraklit": ["um 520 – um 460 v. Chr.", "Vorsokratiker aus Ephesos", "Schon in der Antike „der Dunkle“ genannt, weil er bewusst rätselhaft schrieb. Für ihn ist alles in ständigem Wandel, zusammengehalten von einer verborgenen Ordnung, dem Logos. Von seinem Buch sind nur rund 130 Fragmente erhalten."],
+  "Aristoteles": ["384 – 322 v. Chr.", "Griechischer Philosoph", "Schüler Platons, Lehrer Alexanders des Großen und Gründer einer eigenen Schule, des Lykeion. Er schrieb über fast alles: Logik, Ethik, Politik, Biologie, Physik, Dichtkunst. Über 1500 Jahre lang war er schlicht „der Philosoph“."],
+  "Diogenes von Sinope": ["um 412 – 323 v. Chr.", "Kyniker", "Lebte in Athen angeblich in einem großen Tonfass und besaß fast nichts. Mit provokanten Auftritten verspottete er Konventionen, Reichtum und Macht. Sein Ideal war ein Leben, so bedürfnislos und natürlich wie das eines Hundes, daher der Name „Kyniker“."],
+  "Epikur": ["341 – 270 v. Chr.", "Griechischer Philosoph", "Gründete in Athen eine Gemeinschaft namens „der Garten“, die auch Frauen und Sklaven offenstand. Glück bedeutet für ihn nicht Schwelgen, sondern Freiheit von Schmerz und innere Ruhe. Freundschaft hielt er für das größte Gut."],
+  "Cicero": ["106 – 43 v. Chr.", "Römischer Redner und Staatsmann", "Der berühmteste Redner Roms, Konsul im Jahr 63 v. Chr. In politisch erzwungenen Pausen übertrug er griechische Philosophie ins Lateinische und prägte dabei viele Begriffe, die wir heute noch benutzen. Er wurde auf Betreiben Marcus Antonius’ ermordet."],
+  "Horaz": ["65 – 8 v. Chr.", "Römischer Dichter", "Sohn eines Freigelassenen, später Dichter im Kreis des Kaisers Augustus. Seine Oden, Satiren und Briefe verbinden Lebensklugheit mit Leichtigkeit. Von ihm stammen „carpe diem“ und „sapere aude“."],
+  "Augustinus": ["354 – 430", "Kirchenvater", "Geboren im heutigen Algerien, nach einer wilden Jugend und langer Suche Christ geworden, später Bischof von Hippo. Seine „Bekenntnisse“ gelten als erste große Autobiografie der Weltliteratur. Kaum ein Denker hat die christliche Philosophie so stark geprägt."],
+  "Laozi": ["der Überlieferung nach 6. Jh. v. Chr.", "Legendärer Begründer des Daoismus", "Ob es Laozi wirklich gab, ist unklar; „Laozi“ heißt einfach „alter Meister“. Der Legende nach schrieb er das Daodejing, als er China auf einem Wasserbüffel verließ und ein Grenzwächter ihn um seine Lehre bat."],
+  "Konfuzius": ["551 – 479 v. Chr.", "Chinesischer Philosoph", "Lehrer aus dem Staat Lu, der zeitlebens vergeblich einen Herrscher suchte, der seine Ideen umsetzt. Er lehrte Menschlichkeit, Pflichtbewusstsein, Respekt und lebenslanges Lernen. Seine Gedanken prägen Ostasien bis heute."],
+  "Zhuangzi": ["um 369 – um 286 v. Chr.", "Daoistischer Philosoph", "Neben Laozi die wichtigste Stimme des Daoismus, aber viel verspielter: Er denkt in Gleichnissen, Witzen und Paradoxien. Berühmt ist sein Traum, ein Schmetterling zu sein, nach dem er nicht mehr wusste, ob nicht der Schmetterling von ihm träumt."],
+  "Thích Nhất Hạnh": ["1926 – 2022", "Vietnamesischer Zen-Mönch", "Setzte sich während des Vietnamkriegs für Frieden ein und wurde dafür ins Exil gezwungen. In Frankreich gründete er das Kloster Plum Village. Er hat Achtsamkeit im Westen bekannt gemacht wie kaum ein anderer."],
+  "René Descartes": ["1596 – 1650", "Französischer Philosoph und Mathematiker", "Gilt als Vater der neuzeitlichen Philosophie. Er zweifelte methodisch an allem, bis nur eine Gewissheit übrig blieb: dass er denkt. Nebenbei erfand er das Koordinatensystem, das nach ihm „kartesisch“ heißt."],
+  "Blaise Pascal": ["1623 – 1662", "Französischer Mathematiker und Denker", "Baute als Jugendlicher eine der ersten Rechenmaschinen und begründete die Wahrscheinlichkeitsrechnung mit. Nach einem religiösen Erweckungserlebnis widmete er sich dem Glauben. Er starb mit 39 Jahren."],
+  "Baruch de Spinoza": ["1632 – 1677", "Niederländischer Philosoph", "Wurde mit 23 Jahren wegen seiner Ansichten aus der jüdischen Gemeinde Amsterdams verstoßen. Er verdiente sein Geld als Linsenschleifer und lehnte eine Professur ab, um frei denken zu können. Für ihn sind Gott und Natur ein und dasselbe."],
+  "Michel de Montaigne": ["1533 – 1592", "Französischer Schriftsteller", "Zog sich mit 38 Jahren in den Turm seines Schlosses zurück, um zu lesen und über sich selbst zu schreiben. Daraus wurde eine neue Gattung: der Essay. Sein Motto war „Que sais-je?“, „Was weiß ich?“."],
+  "Voltaire": ["1694 – 1778", "Französischer Aufklärer", "Eigentlich François-Marie Arouet. Er kämpfte mit Witz und Spott gegen Intoleranz, Kirchenmacht und Justizwillkür und saß dafür zweimal in der Bastille. Er war der berühmteste Intellektuelle seiner Zeit."],
+  "Jean-Jacques Rousseau": ["1712 – 1778", "Genfer Philosoph", "Behauptete, der Mensch sei von Natur aus gut und werde erst durch die Gesellschaft verdorben. Seine Ideen zu Volkssouveränität und Erziehung beeinflussten die Französische Revolution und die moderne Pädagogik."],
+  "Francis Bacon": ["1561 – 1626", "Englischer Philosoph und Staatsmann", "Lordkanzler unter Jakob I. und Vordenker der modernen Naturwissenschaft. Er forderte, Wissen nicht aus alten Büchern, sondern aus Beobachtung und Experiment zu gewinnen."],
+  "David Hume": ["1711 – 1776", "Schottischer Philosoph", "Der große Skeptiker der Aufklärung: Er zeigte, dass wir Ursache und Wirkung nie direkt beobachten, sondern nur aus Gewohnheit annehmen. Kant schrieb, Hume habe ihn aus seinem „dogmatischen Schlummer“ geweckt."],
+  "Immanuel Kant": ["1724 – 1804", "Deutscher Philosoph", "Verließ seine Heimatstadt Königsberg fast nie und soll so pünktlich spazieren gegangen sein, dass man die Uhr nach ihm stellte. Mit seinen drei „Kritiken“ veränderte er die Philosophie grundlegend. Er ist die zentrale Figur der Aufklärung."],
+  "G. W. F. Hegel": ["1770 – 1831", "Deutscher Philosoph", "Georg Wilhelm Friedrich Hegel, Professor in Berlin und zu Lebzeiten der einflussreichste Philosoph Deutschlands. Er sah Geschichte als Prozess, in dem der Geist durch Widersprüche hindurch zu sich selbst und zur Freiheit kommt."],
+  "Arthur Schopenhauer": ["1788 – 1860", "Deutscher Philosoph", "Der große Pessimist: Hinter allem steckt für ihn ein blinder, nie zufriedener Wille, der Leid erzeugt. Trost bieten Kunst, Mitleid und Askese. Er lebte zurückgezogen in Frankfurt mit seinen Pudeln und war stark von indischer Philosophie beeinflusst."],
+  "Georg Christoph Lichtenberg": ["1742 – 1799", "Physiker und Aphoristiker", "Professor für Physik in Göttingen und einer der witzigsten Köpfe der deutschen Literatur. In seine Notizhefte, die „Sudelbücher“, schrieb er Einfälle, Beobachtungen und Bosheiten."],
+  "Søren Kierkegaard": ["1813 – 1855", "Dänischer Philosoph", "Gilt als Vater des Existenzialismus. Er schrieb unter vielen Pseudonymen und stellte den einzelnen Menschen mit seiner Angst, Verzweiflung und Entscheidungsfreiheit ins Zentrum. Er starb mit 42 Jahren in Kopenhagen."],
+  "Karl Marx": ["1818 – 1883", "Philosoph und Ökonom", "Geboren in Trier, später im Exil in London. Mit Friedrich Engels schrieb er das „Kommunistische Manifest“, dazu das „Kapital“. Seine Analyse des Kapitalismus hat die Weltgeschichte verändert wie kaum ein anderes Denken."],
+  "John Stuart Mill": ["1806 – 1873", "Englischer Philosoph", "Lernte als Kind Griechisch mit drei Jahren und erlitt mit 20 eine schwere Krise. Er verteidigte den Utilitarismus, die individuelle Freiheit und als einer der ersten Männer im Parlament das Frauenwahlrecht."],
+  "Friedrich Nietzsche": ["1844 – 1900", "Deutscher Philosoph", "Wurde mit 24 Jahren Professor in Basel. Er kritisierte Moral, Religion und Wahrheit radikal und suchte nach einer Bejahung des Lebens. Anfang 1889 brach er in Turin geistig zusammen und schrieb danach nichts mehr."],
+  "Ludwig Wittgenstein": ["1889 – 1951", "Österreichisch-britischer Philosoph", "Stammte aus einer der reichsten Familien Wiens, verschenkte sein Erbe und arbeitete zeitweise als Volksschullehrer und Gärtner. Er dachte darüber nach, was Sprache kann und wo sie an Grenzen stößt, und tat das gleich zweimal sehr verschieden."],
+  "Theodor W. Adorno": ["1903 – 1969", "Philosoph und Soziologe", "Kopf der Frankfurter Schule und der Kritischen Theorie, außerdem Musiker und Komponist. Im amerikanischen Exil schrieb er mit Max Horkheimer die „Dialektik der Aufklärung“."],
+  "Hannah Arendt": ["1906 – 1975", "Politische Theoretikerin", "Wuchs in Königsberg auf, floh 1933 aus Deutschland und lebte ab 1941 in New York. Sie untersuchte Totalitarismus, Macht und Verantwortung. Für ihren Bericht über den Eichmann-Prozess prägte sie den Begriff der „Banalität des Bösen“."],
+  "Albert Camus": ["1913 – 1960", "Französischer Schriftsteller und Philosoph", "Wuchs arm in Algerien auf. Er dachte über das Absurde nach, also den Widerspruch zwischen unserer Sinnsuche und einer schweigenden Welt, und antwortete mit Auflehnung und Lebensfreude. Nobelpreis 1957, drei Jahre später starb er bei einem Autounfall."],
+  "Jean-Paul Sartre": ["1905 – 1980", "Französischer Philosoph", "Die Leitfigur des Existenzialismus: Der Mensch ist nichts anderes als das, wozu er sich macht. Er schrieb Philosophie, Romane und Theaterstücke und lehnte 1964 den Literaturnobelpreis ab."],
+  "Simone de Beauvoir": ["1908 – 1986", "Französische Philosophin und Schriftstellerin", "Mit „Das andere Geschlecht“ schrieb sie eines der Grundbücher des Feminismus. Mit Sartre verband sie eine lebenslange, offene Beziehung. Sie schrieb außerdem Romane und mehrere Bände Autobiografie."],
+  "Simone Weil": ["1909 – 1943", "Französische Philosophin", "Brillante Philosophin, die bewusst in Fabriken arbeitete, um das Leben der Arbeiter zu teilen, und im Spanischen Bürgerkrieg kämpfte. Später wandte sie sich der Mystik zu. Sie starb mit 34 Jahren im englischen Exil."],
+  "Viktor Frankl": ["1905 – 1997", "Österreichischer Psychiater", "Überlebte Theresienstadt, Auschwitz und Dachau; seine Frau und seine Eltern wurden ermordet. Er begründete die Logotherapie, deren Kern lautet: Der Mensch braucht vor allem einen Sinn."],
+  "Albert Schweitzer": ["1875 – 1965", "Theologe, Arzt und Musiker", "Studierte mit 30 Jahren noch Medizin und gründete ein Krankenhaus in Lambaréné im heutigen Gabun. Seine Ethik der „Ehrfurcht vor dem Leben“ brachte ihm den Friedensnobelpreis ein."],
+  "Karl Popper": ["1902 – 1994", "Österreichisch-britischer Philosoph", "Erkannte, dass Theorien nie endgültig bewiesen, nur widerlegt werden können. Im Exil in Neuseeland schrieb er „Die offene Gesellschaft und ihre Feinde“, eine Verteidigung der Demokratie."],
+  "Rosa Luxemburg": ["1871 – 1919", "Sozialistin und Theoretikerin", "Polnisch-deutsche Ökonomin und eine der wichtigsten Stimmen der Arbeiterbewegung. Sie war gegen den Ersten Weltkrieg und saß dafür lange in Haft. Im Januar 1919 wurde sie in Berlin von Freikorps-Soldaten ermordet."],
+  "Bertrand Russell": ["1872 – 1970", "Britischer Philosoph und Logiker", "Mitbegründer der modernen Logik und analytischen Philosophie, außerdem streitbarer Pazifist, der dafür im Gefängnis saß. Er erhielt 1950 den Literaturnobelpreis und wurde 97 Jahre alt."],
+  "William James": ["1842 – 1910", "Amerikanischer Psychologe und Philosoph", "Gründete die akademische Psychologie in den USA und den Pragmatismus mit. Eine Idee ist für ihn wahr, wenn sie sich im Leben bewährt. Sein Bruder war der Schriftsteller Henry James."],
+  "Iris Murdoch": ["1919 – 1999", "Irisch-britische Philosophin und Schriftstellerin", "Lehrte Philosophie in Oxford und schrieb 26 Romane. Für sie beginnt Moral mit Aufmerksamkeit: die Welt und andere Menschen wirklich zu sehen, statt nur sich selbst."],
+  "Alan Watts": ["1915 – 1973", "Britischer Philosoph", "Machte Zen-Buddhismus und Daoismus im Westen bekannt, vor allem durch Bücher und Radiovorträge in Kalifornien. Er erklärte östliches Denken mit viel Humor und Leichtigkeit."],
+  "Johann Wolfgang von Goethe": ["1749 – 1832", "Dichter und Naturforscher", "Wurde mit dem „Werther“ über Nacht berühmt und arbeitete rund 60 Jahre am „Faust“. In Weimar war er auch Minister und forschte über Farben, Pflanzen und Knochen. Er ist der bekannteste Dichter deutscher Sprache."],
+  "Friedrich Schiller": ["1759 – 1805", "Dichter und Philosoph", "Floh als junger Militärarzt nach der Uraufführung seiner „Räuber“ aus Württemberg. Später schrieb er Dramen wie „Wilhelm Tell“ und dachte über Freiheit und Schönheit nach. Mit Goethe verband ihn eine berühmte Freundschaft."],
+  "Friedrich Hölderlin": ["1770 – 1843", "Dichter", "Studierte in Tübingen zusammen mit Hegel und Schelling. Seine Gedichte verbinden griechische Götterwelt und Sehnsucht. Die zweite Hälfte seines Lebens verbrachte er psychisch krank in einem Turm am Neckar."],
+  "Novalis": ["1772 – 1801", "Dichter der Frühromantik", "Eigentlich Friedrich von Hardenberg, im Beruf Salinenassessor. Nach dem Tod seiner jungen Verlobten schrieb er die „Hymnen an die Nacht“. Die „blaue Blume“ aus seinem Roman wurde zum Symbol der Romantik. Er starb mit 28 Jahren."],
+  "Rainer Maria Rilke": ["1875 – 1926", "Dichter", "Geboren in Prag, lebte er rastlos in ganz Europa, unter anderem als Sekretär des Bildhauers Rodin. Die „Duineser Elegien“ und „Sonette an Orpheus“ gehören zu den bedeutendsten Gedichten des 20. Jahrhunderts."],
+  "Hermann Hesse": ["1877 – 1962", "Schriftsteller", "Seine Romane „Siddhartha“, „Steppenwolf“ und „Das Glasperlenspiel“ handeln von der Suche nach dem eigenen Weg. Er lebte ab 1919 im Tessin und erhielt 1946 den Literaturnobelpreis. In den 1960ern wurde er zum Kultautor der Hippies."],
+  "Franz Kafka": ["1883 – 1924", "Schriftsteller", "Arbeitete tagsüber in einer Prager Versicherung und schrieb nachts. Er wollte, dass sein Freund Max Brod seine Manuskripte verbrennt; Brod veröffentlichte sie trotzdem. So kennen wir „Der Process“ und „Das Schloss“."],
+  "Marie von Ebner-Eschenbach": ["1830 – 1916", "Österreichische Schriftstellerin", "Adelige aus Mähren, die sich gegen viele Widerstände als Schriftstellerin durchsetzte. Bekannt sind ihre Erzählungen wie „Krambambuli“ und ihre treffsicheren Aphorismen."],
+  "Erich Kästner": ["1899 – 1974", "Schriftsteller", "Schrieb „Emil und die Detektive“ und „Das doppelte Lottchen“, aber auch scharfe Gedichte für Erwachsene. 1933 sah er in Berlin zu, wie seine eigenen Bücher verbrannt wurden."],
+  "Wilhelm von Humboldt": ["1767 – 1835", "Gelehrter und Bildungsreformer", "Gründete 1810 die Berliner Universität, die heute seinen Namen trägt, und prägte das Ideal der umfassenden Bildung. Er war Diplomat und Sprachforscher. Sein Bruder war der Naturforscher Alexander von Humboldt."],
+  "Dietrich Bonhoeffer": ["1906 – 1945", "Theologe und Widerstandskämpfer", "Evangelischer Pfarrer, der früh gegen das NS-Regime auftrat und Kontakt zum Widerstand hatte. Er wurde 1943 verhaftet und im April 1945, wenige Wochen vor Kriegsende, im KZ Flossenbürg hingerichtet."],
+  "Fjodor Dostojewski": ["1821 – 1881", "Russischer Schriftsteller", "Wurde 1849 zum Tod verurteilt, erst auf dem Richtplatz begnadigt und dann nach Sibirien verbannt. Seine Romane wie „Schuld und Sühne“ und „Die Brüder Karamasow“ erkunden Schuld, Glauben und Freiheit."],
+  "Marie Curie": ["1867 – 1934", "Physikerin und Chemikerin", "In Warschau geboren, forschte sie in Paris zur Radioaktivität und entdeckte Polonium und Radium. Sie war die erste Frau mit Nobelpreis und bis heute der einzige Mensch mit Nobelpreisen in zwei Naturwissenschaften."],
+  "Albert Einstein": ["1879 – 1955", "Physiker", "Veröffentlichte 1905 als Angestellter im Berner Patentamt gleich mehrere bahnbrechende Arbeiten, darunter die spezielle Relativitätstheorie. Nobelpreis 1921. 1933 emigrierte er in die USA, wo er auch für Frieden und Bürgerrechte eintrat."],
+  "William Shakespeare": ["1564 – 1616", "Englischer Dramatiker und Dichter", "Aus Stratford-upon-Avon, Schauspieler und Teilhaber am Londoner Globe Theatre. Er schrieb rund 38 Stücke und 154 Sonette und gilt als größter Dramatiker der Weltliteratur."],
+  "John Donne": ["1572 – 1631", "Englischer Dichter und Prediger", "Schrieb in jungen Jahren kühne Liebesgedichte, später wurde er Dekan der St Paul’s Cathedral in London. Er ist der bekannteste der „metaphysischen Dichter“."],
+  "William Blake": ["1757 – 1827", "Dichter, Maler und Kupferstecher", "Ein Visionär, der von Kindheit an von Engeln erzählte. Er gestaltete seine Gedichtbände selbst als handkolorierte Druckwerke. Zu Lebzeiten kaum beachtet, gilt er heute als großer Romantiker."],
+  "John Keats": ["1795 – 1821", "Englischer Dichter der Romantik", "Brach eine Ausbildung zum Chirurgen ab, um Dichter zu werden. Fast alle seine großen Gedichte entstanden in nur wenigen Jahren. Er starb mit 25 Jahren in Rom an Tuberkulose."],
+  "Ralph Waldo Emerson": ["1803 – 1882", "Amerikanischer Essayist", "Gab sein Amt als Pfarrer auf und wurde Kopf des Transzendentalismus. Er lehrte Selbstvertrauen, Naturverbundenheit und eigenes Denken. Er war Mentor und Freund von Henry David Thoreau."],
+  "Henry David Thoreau": ["1817 – 1862", "Amerikanischer Schriftsteller", "Lebte zwei Jahre allein in einer selbst gebauten Hütte am Walden-See. Weil er keine Steuern für Sklaverei und Krieg zahlen wollte, kam er ins Gefängnis. Sein Essay über zivilen Ungehorsam inspirierte später Gandhi und Martin Luther King."],
+  "Walt Whitman": ["1819 – 1892", "Amerikanischer Dichter", "Arbeitete als Drucker, Lehrer und im Bürgerkrieg als Krankenpfleger. Sein Lebenswerk „Leaves of Grass“ erweiterte er immer wieder. Mit seinem freien Vers wurde er zum Vater der modernen amerikanischen Lyrik."],
+  "Emily Dickinson": ["1830 – 1886", "Amerikanische Dichterin", "Lebte zurückgezogen in Amherst, Massachusetts, und verließ das Haus später kaum. Nach ihrem Tod fand ihre Schwester fast 1800 Gedichte; zu Lebzeiten waren nur rund zehn erschienen."],
+  "Oscar Wilde": ["1854 – 1900", "Irischer Schriftsteller", "Der glänzendste Spötter des viktorianischen London, Autor von „Das Bildnis des Dorian Gray“ und vieler Komödien. 1895 wurde er wegen seiner Homosexualität zu zwei Jahren Zuchthaus verurteilt. Er starb verarmt in Paris."],
+  "Virginia Woolf": ["1882 – 1941", "Englische Schriftstellerin", "Zentrale Figur der Bloomsbury Group und der literarischen Moderne. In Romanen wie „Mrs Dalloway“ und „Zum Leuchtturm“ folgt sie dem Strom der Gedanken. Sie gründete mit ihrem Mann einen eigenen Verlag."],
+  "George Orwell": ["1903 – 1950", "Englischer Schriftsteller", "Eigentlich Eric Blair. Er war Polizist in Burma, lebte unter Obdachlosen und kämpfte im Spanischen Bürgerkrieg. Mit „1984“ und „Farm der Tiere“ schrieb er die bekanntesten Warnungen vor Totalitarismus."],
+  "J. R. R. Tolkien": ["1892 – 1973", "Englischer Philologe und Schriftsteller", "Professor für Altenglisch in Oxford, der eigene Sprachen erfand und dafür eine ganze Welt erschuf: Mittelerde. „Der Hobbit“ und „Der Herr der Ringe“ begründeten die moderne Fantasy."],
+  "Samuel Beckett": ["1906 – 1989", "Irischer Dramatiker und Schriftsteller", "Lebte in Paris und schrieb auf Englisch und Französisch. Mit „Warten auf Godot“ veränderte er das Theater. Seine Texte werden immer karger, ernster und zugleich komischer. Nobelpreis 1969."],
+  "James Baldwin": ["1924 – 1987", "Amerikanischer Schriftsteller", "Wuchs in Harlem auf und ging mit 24 Jahren nach Paris, um dem Rassismus zu entkommen. Seine Essays wie „The Fire Next Time“ wurden zu wichtigen Stimmen der Bürgerrechtsbewegung."],
+  "Martin Luther King Jr.": ["1929 – 1968", "Bürgerrechtler und Pastor", "Führte die amerikanische Bürgerrechtsbewegung mit gewaltlosem Widerstand an. Seine Rede „I Have a Dream“ von 1963 ist weltberühmt. Friedensnobelpreis 1964, 1968 wurde er in Memphis ermordet."],
+  "Maya Angelou": ["1928 – 2014", "Amerikanische Dichterin und Autorin", "War Tänzerin, Sängerin, Journalistin und Bürgerrechtlerin, bevor sie mit ihrer Autobiografie „Ich weiß, warum der gefangene Vogel singt“ berühmt wurde. 1993 las sie ein Gedicht bei der Amtseinführung von Präsident Clinton."],
+  "Mary Oliver": ["1935 – 2019", "Amerikanische Dichterin", "Schrieb fast ausschließlich über Spaziergänge, Tiere und Pflanzen, und darüber, wie man aufmerksam lebt. Sie gewann 1984 den Pulitzer-Preis und war eine der meistgelesenen Dichterinnen Amerikas."],
+  "Annie Dillard": ["geboren 1945", "Amerikanische Schriftstellerin", "Wurde mit „Pilger am Tinker Creek“ bekannt, genauen Beobachtungen der Natur an einem Bach in Virginia, für die sie 1975 den Pulitzer-Preis erhielt. Sie schreibt über Natur, Glauben und das Schreiben selbst."],
+  "Ursula K. Le Guin": ["1929 – 2018", "Amerikanische Schriftstellerin", "Tochter eines Anthropologen und eine der großen Autorinnen von Science-Fiction und Fantasy, etwa mit dem „Erdsee“-Zyklus. Ihre Welten fragen nach Geschlecht, Macht und Freiheit. Sie übersetzte auch das Daodejing."],
+  "Toni Morrison": ["1931 – 2019", "Amerikanische Schriftstellerin", "Arbeitete als Lektorin und schrieb nebenbei ihre Romane, darunter „Menschenkind“. Sie erzählte afroamerikanische Geschichte mit großer poetischer Kraft und erhielt 1993 als erste Schwarze Frau den Literaturnobelpreis."],
+  "Audre Lorde": ["1934 – 1992", "Amerikanische Dichterin und Aktivistin", "Beschrieb sich selbst als „schwarz, lesbisch, Mutter, Kriegerin, Dichterin“. Sie schrieb über Rassismus, Feminismus und ihre Krebserkrankung und prägte das Denken über Mehrfachdiskriminierung."],
+  "bell hooks": ["1952 – 2021", "Amerikanische Theoretikerin", "Eigentlich Gloria Jean Watkins; sie schrieb ihren Namen klein, damit ihre Ideen wichtiger sind als ihre Person. Sie schrieb über Feminismus, Rassismus, Bildung und darüber, wie Liebe die Gesellschaft verändern kann."],
+  "Carl Sagan": ["1934 – 1996", "Amerikanischer Astronom", "Erforschte Planeten und half bei NASA-Missionen. Mit seiner Fernsehserie „Unser Kosmos“ brachte er Millionen Menschen die Wissenschaft nahe. Auf seine Idee hin fotografierte Voyager 1 die Erde als „blassblauen Punkt“."],
+  "Richard Feynman": ["1918 – 1988", "Amerikanischer Physiker", "Nobelpreis 1965 für Quantenelektrodynamik, berühmt als neugieriger, verspielter Lehrer. Er spielte Bongo, knackte Safes und zeigte bei der Untersuchung des Challenger-Unglücks mit einem Glas Eiswasser, woran es lag."]
+};
+
+// Werke: [Jahr, Art, Beschreibung]; Schlüssel = Quelle bis zum ersten Komma (oder die ganze Quelle)
+const S = {
+  "Handbüchlein der Moral": ["um 125 n. Chr.", "Lehrbuch", "Epiktets Schüler Arrian fasste die Lehre seines Meisters in 53 kurzen Abschnitten zusammen. Es beginnt mit der Unterscheidung zwischen dem, was in unserer Macht steht, und dem, was nicht. Jahrhundertelang war es eine Art Taschenbuch für die Lebensführung."],
+  "Briefe an Lucilius": ["um 62 – 65 n. Chr.", "Briefsammlung", "124 Briefe an Senecas jüngeren Freund Lucilius, geschrieben in seinen letzten Lebensjahren. Sie handeln von Zeit, Tod, Freundschaft, Angst und Reichtum, praktisch und persönlich. Bis heute einer der schönsten Einstiege in die Stoa."],
+  "Von der Kürze des Lebens": ["um 49 n. Chr.", "Philosophischer Essay", "Seneca widerspricht der Klage, das Leben sei zu kurz: Es ist lang genug, wir verschwenden es nur. Wer seine Zeit mit Geschäften, Ehrgeiz und Ablenkung füllt, hat am Ende kaum gelebt."],
+  "Selbstbetrachtungen": ["um 170 – 180 n. Chr.", "Persönliche Notizen", "Auf Griechisch geschriebene Notizen, eigentlich mit „An sich selbst“ überschrieben. Marc Aurel ermahnt sich darin, gelassen, gerecht und freundlich zu bleiben. Das Buch war nie zur Veröffentlichung gedacht, gerade deshalb wirkt es so ehrlich."],
+  "nach Platon": ["um 399 – 380 v. Chr.", "Dialoge Platons", "Sokrates schrieb selbst nichts. In der „Apologie“ gibt Platon Sokrates’ Verteidigungsrede vor dem Gericht wieder, das ihn zum Tod verurteilte. Im „Gorgias“ streitet Sokrates darüber, ob Macht oder Gerechtigkeit glücklich macht."],
+  "Fragment B 91": ["um 500 v. Chr.", "Fragment", "Heraklits Buch ist verloren; erhalten sind nur Sätze, die spätere Autoren zitierten. Die Nummer folgt der Standardausgabe von Diels und Kranz. Das Bild vom Fluss steht für seine Lehre, dass alles fließt und sich wandelt."],
+  "Fragment B 119": ["um 500 v. Chr.", "Fragment", "Heraklits Buch ist verloren; erhalten sind nur Sätze, die spätere Autoren zitierten. Die Nummer folgt der Standardausgabe von Diels und Kranz. Im Griechischen steht für „Schicksal“ das Wort „Daimon“: Unser Charakter ist unser Schutzgeist."],
+  "Nikomachische Ethik": ["um 330 v. Chr.", "Philosophisches Lehrwerk", "Benannt nach Aristoteles’ Sohn Nikomachos. Es fragt, was ein gelungenes Leben ist, und antwortet: tugendhaft handeln, über ein ganzes Leben hinweg. Tugend ist dabei die richtige Mitte zwischen zwei Extremen, etwa Mut zwischen Feigheit und Tollkühnheit."],
+  "Politik": ["um 330 v. Chr.", "Philosophisches Lehrwerk", "Aristoteles vergleicht Verfassungen griechischer Stadtstaaten und fragt, welche Staatsform die beste ist. Grundlage ist der Gedanke, dass der Mensch nur in Gemeinschaft wirklich Mensch sein kann."],
+  "zu Alexander dem Großen": ["Anekdote, überliefert im 3. Jh. n. Chr.", "Überlieferte Anekdote", "Diogenes Laertios erzählt in seinen Lebensbeschreibungen der Philosophen: Alexander der Große trat zu Diogenes, der sich sonnte, und bot ihm an, sich etwas zu wünschen. Diogenes bat nur, er möge ihm aus der Sonne gehen."],
+  "Brief an Menoikeus": ["um 300 v. Chr.", "Lehrbrief", "Ein kurzer Brief, in dem Epikur seine ganze Ethik zusammenfasst: keine Angst vor den Göttern, keine Angst vor dem Tod, maßvolle Freude als Ziel. Er ist nur erhalten, weil Diogenes Laertios ihn vollständig abschrieb."],
+  "Briefe an Freunde": ["62 – 43 v. Chr.", "Briefsammlung", "Über 400 Briefe Ciceros an Freunde, Verwandte und Politiker, die nach seinem Tod in 16 Büchern herausgegeben wurden. Der Satz über Garten und Bibliothek steht in einem Brief an den Gelehrten Varro."],
+  "Oden": ["23 v. Chr.", "Gedichtsammlung", "Horaz’ Gedichte in griechischen Versmaßen über Liebe, Freundschaft, Wein und Vergänglichkeit. In Ode I 11 rät er Leukonoe, nicht in den Sternen nach der Zukunft zu forschen, sondern den Tag zu pflücken: „carpe diem“."],
+  "Bekenntnisse": ["um 397 – 401", "Autobiografie", "Augustinus erzählt Gott sein Leben, von den Jugendsünden bis zur Bekehrung. Die späteren Bücher werden philosophisch; Buch XI enthält eine der berühmtesten Untersuchungen über die Natur der Zeit."],
+  "Daodejing": ["etwa 4. Jh. v. Chr.", "Grundtext des Daoismus", "81 kurze, rätselhafte Kapitel mit nur rund 5000 Schriftzeichen. Es geht um das Dao, den Weg allen Seins, und um das Handeln durch Nicht-Eingreifen. Es ist eines der meistübersetzten Bücher der Welt."],
+  "Gespräche": ["5. – 3. Jh. v. Chr.", "Spruchsammlung", "Die „Lunyu“ oder „Analekten“: kurze Aussprüche und Gespräche des Konfuzius, nach seinem Tod von Schülern gesammelt. In 20 Büchern geht es um Bildung, Menschlichkeit, Familie und gutes Regieren."],
+  "Zhuangzi": ["4. – 3. Jh. v. Chr.", "Philosophische Prosa", "Das nach Zhuangzi benannte Buch voller Fabeln, Dialoge und Paradoxien. Riesige Vögel, weise Köche und nutzlose Bäume zeigen, wie relativ unsere Maßstäbe sind. Nur die ersten sieben Kapitel gelten als von ihm selbst."],
+  "Peace Is Every Step": ["1991", "Achtsamkeitsbuch", "Auf Deutsch „Ich pflanze ein Lächeln“. Kurze Texte darüber, wie man im Alltag achtsam wird: beim Atmen, beim Abwaschen, beim Gehen, sogar beim Warten an der roten Ampel."],
+  "Abhandlung über die Methode": ["1637", "Philosophische Abhandlung", "Descartes schrieb sie auf Französisch statt Latein, damit jeder sie lesen kann. Er beschreibt, wie er alles bezweifelt, bis nur „Ich denke, also bin ich“ übrig bleibt. Ursprünglich war sie die Einleitung zu drei naturwissenschaftlichen Schriften."],
+  "Gedanken": ["1670 (posthum)", "Fragmentsammlung", "Die „Pensées“ sind Notizen für ein geplantes Buch zur Verteidigung des Christentums, das Pascal nie vollendete. Darin stehen seine berühmte Wette auf Gott und Gedanken über das Elend und die Größe des Menschen."],
+  "Ethik": ["1677 (posthum)", "Philosophisches Hauptwerk", "Spinoza schrieb sie „nach geometrischer Methode“: mit Definitionen, Axiomen und Beweisen wie ein Mathematikbuch. Es geht um Gott als Natur, um Gefühle und darum, wie wir durch Erkenntnis frei werden."],
+  "Essais": ["1580 – 1588", "Essaysammlung", "Montaigne nannte seine Texte „Versuche“ und erfand damit eine neue Gattung. Er schreibt über Freundschaft, Kannibalen, Daumen, Tod und vor allem über sich selbst. Kapitel I 39 handelt von der Einsamkeit."],
+  "Candide": ["1759", "Satirischer Roman", "Der naive Candide glaubt, er lebe in der „besten aller möglichen Welten“, und erlebt dann Krieg, Erdbeben und Inquisition. Voltaire verspottet damit den Optimismus des Philosophen Leibniz. Am Ende steht der Rat, seinen Garten zu bestellen."],
+  "Vom Gesellschaftsvertrag": ["1762", "Politische Schrift", "Rousseau fragt, wie Menschen in einem Staat leben und trotzdem frei bleiben können. Seine Antwort ist die Herrschaft des Gemeinwillens des Volkes. Das Buch wurde zu einer Bibel der Französischen Revolution."],
+  "Meditationes sacrae": ["1597", "Religiöse Betrachtungen", "Eine kleine lateinische Sammlung religiöser Meditationen. Darin steht der Satz „ipsa scientia potestas est“, „Wissen selbst ist Macht“, der zum Motto der modernen Wissenschaft wurde."],
+  "A Treatise of Human Nature": ["1739 – 1740", "Philosophisches Hauptwerk", "Hume schrieb diesen „Traktat über die menschliche Natur“ mit Mitte zwanzig. Er erklärt das Denken aus Erfahrung und Gewohnheit und die Moral aus Gefühlen. Er klagte, es sei „totgeboren aus der Presse gefallen“; heute ist es ein Klassiker."],
+  "Beantwortung der Frage: Was ist Aufklärung?": ["1784", "Zeitschriftenaufsatz", "Erschien in der „Berlinischen Monatsschrift“. Kant definiert Aufklärung als „Ausgang des Menschen aus seiner selbstverschuldeten Unmündigkeit“. Der Wahlspruch „Sapere aude!“, also „Habe Mut, dich deines eigenen Verstandes zu bedienen“, wurde zum Leitsatz einer ganzen Epoche."],
+  "Kritik der praktischen Vernunft": ["1788", "Philosophisches Hauptwerk", "Die zweite von Kants drei Kritiken, über Moral und Freiheit. Der Satz vom bestirnten Himmel und dem moralischen Gesetz steht im Schlusskapitel und ist auf einer Gedenktafel für Kant in Königsberg eingraviert."],
+  "Grundlegung zur Metaphysik der Sitten": ["1785", "Philosophische Schrift", "Kants kürzeste Ethik und Einstieg in seine Moralphilosophie. Hier formuliert er den kategorischen Imperativ: ein Prüfstein dafür, ob eine Handlung moralisch ist."],
+  "Vorlesungen über die Philosophie der Geschichte": ["1837 (posthum)", "Vorlesungen", "Aus Mitschriften von Hegels Berliner Vorlesungen zusammengestellt. Weltgeschichte erscheint als Fortschritt im Bewusstsein der Freiheit, vom alten China bis zum modernen Europa."],
+  "Grundlinien der Philosophie des Rechts": ["1820", "Philosophisches Hauptwerk", "Hegels Theorie von Recht, Moral, Familie, Gesellschaft und Staat. Das Bild der Eule der Minerva steht in der Vorrede: Philosophie begreift eine Zeit erst, wenn sie zu Ende geht."],
+  "Preisschrift über die Freiheit des Willens": ["1839", "Preisschrift", "Schopenhauer reichte sie bei einem Wettbewerb der Norwegischen Königlichen Akademie der Wissenschaften ein und gewann. Er argumentiert, dass wir zwar tun können, was wir wollen, unser Wollen aber durch unseren Charakter festgelegt ist."],
+  "Die Welt als Wille und Vorstellung": ["1819, erweitert 1844", "Philosophisches Hauptwerk", "Die Welt ist einerseits unsere Vorstellung, andererseits Ausdruck eines blinden Willens, der nie zur Ruhe kommt. Zunächst kaum beachtet, wurde das Buch später enorm einflussreich, etwa für Wagner, Nietzsche und Freud."],
+  "Sudelbücher": ["1764 – 1799", "Notizhefte", "Lichtenberg nannte seine Notizbücher nach dem kaufmännischen „Sudelbuch“, in das man alles erst einmal hineinschreibt. Sie enthalten Einfälle, Beobachtungen, Witze und Aphorismen und wurden erst nach seinem Tod veröffentlicht."],
+  "Tagebücher": ["1834 – 1855", "Tagebücher", "Kierkegaard führte über zwanzig Jahre Tagebücher und Journale mit tausenden Seiten. Sie zeigen den Denker hinter seinen vielen Pseudonymen: zweifelnd, verliebt, verzweifelt, gläubig."],
+  "Der Begriff Angst": ["1844", "Philosophische Schrift", "Unter dem Pseudonym Vigilius Haufniensis veröffentlicht. Angst ist für Kierkegaard keine Furcht vor etwas Bestimmtem, sondern das Gefühl angesichts der eigenen Freiheit, der Möglichkeit, sich zu entscheiden."],
+  "Thesen über Feuerbach": ["1845, veröffentlicht 1888", "Notizen", "Elf kurze Thesen, die Marx in ein Notizbuch schrieb und die Engels erst nach Marx’ Tod veröffentlichte. Die elfte These steht auf Marx’ Grab in London und im Foyer der Humboldt-Universität."],
+  "Utilitarianism": ["1861", "Philosophische Schrift", "Mill verteidigt das Prinzip, dass richtig ist, was das größte Glück für die meisten bringt. Anders als sein Vorgänger Bentham unterscheidet er dabei höhere und niedere Freuden."],
+  "Götzen-Dämmerung": ["1889", "Philosophische Streitschrift", "Untertitel: „Wie man mit dem Hammer philosophiert“. Nietzsche klopft darin die „Götzen“ seiner Zeit ab, also Moral, Vernunft und Idealismus, um zu hören, ob sie hohl sind. Das erste Kapitel besteht aus kurzen „Sprüchen und Pfeilen“."],
+  "Also sprach Zarathustra": ["1883 – 1885", "Philosophische Dichtung", "„Ein Buch für Alle und Keinen“: Der Prophet Zarathustra steigt von seinem Berg und verkündet den Übermenschen und die ewige Wiederkunft. Nietzsche hielt es für sein wichtigstes Werk."],
+  "nach Pindar": ["um 470 v. Chr. / 1882", "Ode / Aphorismen", "Der griechische Dichter Pindar schrieb: „Werde, der du bist, nachdem du es erfahren hast.“ Nietzsche griff den Satz in „Die fröhliche Wissenschaft“ auf und machte ihn zu einem Leitmotiv, später auch im Untertitel von „Ecce homo“: „Wie man wird, was man ist“."],
+  "Tractatus logico-philosophicus": ["1921", "Philosophische Abhandlung", "Das einzige philosophische Buch, das Wittgenstein zu Lebzeiten veröffentlichte, in nummerierten Sätzen. Er entwarf es als Soldat im Ersten Weltkrieg und glaubte, damit alle Probleme der Philosophie gelöst zu haben."],
+  "Philosophische Untersuchungen": ["1953 (posthum)", "Philosophisches Hauptwerk", "Der späte Wittgenstein widerspricht seinem früheren Ich: Die Bedeutung eines Wortes ist sein Gebrauch in der Sprache. Er spricht von „Sprachspielen“ und will die Fliege aus dem Fliegenglas befreien."],
+  "Minima Moralia": ["1951", "Aphorismen", "Untertitel: „Reflexionen aus dem beschädigten Leben“. Adorno schrieb die Texte im amerikanischen Exil während und nach dem Zweiten Weltkrieg. Kleine Beobachtungen aus dem Alltag werden zu Kritik an der ganzen Gesellschaft."],
+  "Gespräch mit Joachim Fest": ["1964", "Rundfunkgespräch", "Ein Radiogespräch mit dem Journalisten Joachim Fest über Arendts Buch „Eichmann in Jerusalem“. Sie betont darin, dass Gehorsam keine Entschuldigung ist: Wer mitmacht, unterstützt."],
+  "Der Mythos des Sisyphos": ["1942", "Philosophischer Essay", "Camus fragt, ob das Leben angesichts seiner Sinnlosigkeit lebenswert ist. Seine Antwort ist Sisyphos, der ewig seinen Stein bergauf rollt und darin trotzdem sein Glück findet."],
+  "Heimkehr nach Tipasa": ["1952", "Essay", "Camus kehrt zu den römischen Ruinen von Tipasa an der algerischen Küste zurück, die er aus seiner Jugend kennt. Inmitten von Kälte und Krieg findet er dort sein Licht wieder. Erschienen im Band „Heimkehr nach Tipasa“ (L’Été)."],
+  "Der Existentialismus ist ein Humanismus": ["1946", "Vortrag", "Ein Vortrag von 1945 in Paris, so überfüllt, dass Menschen in Ohnmacht fielen. Sartre erklärt allgemeinverständlich: Die Existenz geht der Essenz voraus. Erst durch unser Handeln werden wir, was wir sind."],
+  "Das andere Geschlecht": ["1949", "Philosophisches Hauptwerk", "Ein fast tausendseitiges Werk darüber, wie Frauen in Geschichte, Mythos und Alltag zum „Anderen“ des Mannes gemacht wurden. Es wurde zum Grundbuch der zweiten Welle des Feminismus."],
+  "Brief an Joë Bousquet": ["1942", "Brief", "Simone Weil schrieb dem französischen Dichter Joë Bousquet, der seit einer Kriegsverletzung gelähmt war. In ihrem Briefwechsel geht es um Leid, Liebe und Aufmerksamkeit für andere."],
+  "… trotzdem Ja zum Leben sagen": ["1946", "Erfahrungsbericht", "Frankl beschreibt seine Erfahrungen in den Konzentrationslagern und was Menschen dort Halt gab. Daraus entwickelt er seine Lehre vom Sinn. Auf Englisch heißt es „Man’s Search for Meaning“ und hat sich millionenfach verkauft."],
+  "Kultur und Ethik": ["1923", "Kulturphilosophie", "Schweitzer entwickelt hier seine Ethik der „Ehrfurcht vor dem Leben“, die ihm 1915 auf einer Flussfahrt in Afrika eingefallen war. Jedes Leben, auch das von Tieren und Pflanzen, verdient Achtung."],
+  "Alles Leben ist Problemlösen": ["1994", "Aufsatzsammlung", "Poppers letztes Buch versammelt Aufsätze über Erkenntnis, Geschichte und Politik. Optimismus sieht er darin als moralische Pflicht: Die Zukunft ist offen, und wir alle tragen zu ihr bei."],
+  "Zur russischen Revolution": ["1918, veröffentlicht 1922", "Politische Schrift", "Im Gefängnis geschrieben. Luxemburg begrüßt die Revolution in Russland, kritisiert aber scharf, dass Lenin Demokratie und Pressefreiheit abschafft. Der berühmte Satz steht als Randnotiz im Manuskript."],
+  "What I Believe": ["1925", "Essay", "Ein kurzes Buch, in dem Russell sein Weltbild darlegt: über Natur, den Menschen, das gute Leben und Moral. Ohne Gott, aber mit Liebe und Wissen als Kompass."],
+  "The Conquest of Happiness": ["1930", "Ratgeber", "Auf Deutsch „Eroberung des Glücks“. Russell erklärt praktisch, was Menschen unglücklich macht, zum Beispiel Neid, Langeweile oder Sorge, und wie man glücklicher wird: durch Interessen, Zuneigung und Arbeit."],
+  "Tagebuch": ["1870", "Tagebucheintrag", "Ein Eintrag vom 30. April 1870, mitten in einer schweren depressiven Krise. Nach der Lektüre des Philosophen Renouvier beschließt James, an den freien Willen zu glauben, und findet dadurch wieder ins Leben."],
+  "The Sublime and the Good": ["1959", "Philosophischer Aufsatz", "Murdoch verbindet Kunst und Moral: Beide verlangen, von sich selbst abzusehen und etwas anderes wirklich wahrzunehmen. Liebe ist für sie genau diese Art der Wahrnehmung."],
+  "The Essence of Alan Watts": ["1970er-Jahre", "Textsammlung", "Eine Sammlung kurzer Texte, die auf Watts’ Vorträgen beruhen. Es geht um Zen, Zeit, Tod und darum, im gegenwärtigen Moment zu leben."],
+  "Faust I": ["1808", "Tragödie", "Der Gelehrte Faust schließt einen Pakt mit dem Teufel Mephisto, um zu erfahren, „was die Welt im Innersten zusammenhält“. Der Satz über das Irren spricht Gott selbst im „Prolog im Himmel“."],
+  "Wilhelm Meisters Wanderjahre": ["1821, erweitert 1829", "Roman", "Fortsetzung von „Wilhelm Meisters Lehrjahre“. Ein offener Roman aus Erzählungen, Briefen und Sprüchen über Arbeit, Bildung und Gemeinschaft. Die Spruchsammlungen sind eine Fundgrube für Lebensweisheiten."],
+  "Das Göttliche": ["1783", "Gedicht", "Eine Hymne aus Goethes Weimarer Zeit. Die Natur ist gleichgültig; nur der Mensch kann unterscheiden, wählen und richten. Darum soll er edel, hilfreich und gut sein."],
+  "Über die ästhetische Erziehung des Menschen": ["1795", "Philosophische Briefe", "27 Briefe an den Prinzen von Augustenburg, der Schiller finanziell unterstützte. Schiller sieht im Spiel und in der Schönheit den Weg zur Freiheit. Der Satz über das Spielen steht im 15. Brief."],
+  "Patmos": ["1803", "Hymne", "Eine von Hölderlins späten großen Hymnen, dem Landgrafen von Homburg gewidmet, benannt nach der griechischen Insel. Sie beginnt mit den Versen „Nah ist / Und schwer zu fassen der Gott. / Wo aber Gefahr ist, wächst / Das Rettende auch.“"],
+  "Heinrich von Ofterdingen": ["1802 (posthum)", "Roman", "Novalis’ unvollendeter Roman über einen jungen Dichter, der von einer blauen Blume träumt und sich auf die Suche macht. Die blaue Blume wurde zum Symbol der Romantik für Sehnsucht."],
+  "Briefe an einen jungen Dichter": ["1929 (posthum)", "Briefe", "Zehn Briefe, die Rilke zwischen 1903 und 1908 dem jungen Offiziersschüler Franz Xaver Kappus schrieb, der ihm seine Gedichte geschickt hatte. Sie handeln von Einsamkeit, Liebe, Geduld und davon, nach innen zu gehen."],
+  "Stufen": ["1941", "Gedicht", "Hesse schrieb es nach einer langen Krankheit; später nahm er es in „Das Glasperlenspiel“ auf. Das Leben wird als Folge von Stufen beschrieben, von denen man immer wieder Abschied nehmen muss."],
+  "Brief an Oskar Pollak": ["1904", "Brief", "Der 20-jährige Kafka schrieb seinem Schulfreund Oskar Pollak, man solle nur Bücher lesen, die einen beißen und stechen. Ein Buch müsse die Axt sein für das gefrorene Meer in uns."],
+  "Aphorismen": ["1880", "Aphorismensammlung", "Ebner-Eschenbachs Sammlung kurzer, scharfsinniger Sätze über Menschen, Moral und Gesellschaft. Sie gilt als eine der besten deutschsprachigen Aphoristikerinnen."],
+  "Moral": ["1950", "Epigramm", "Ein Zweizeiler aus Kästners Sammlung „Kurz und bündig“. In nur einer Zeile steckt seine ganze Ethik: Gute Absichten zählen nichts, solange man nicht handelt."],
+  "Briefe an eine Freundin": ["1847 (posthum)", "Briefsammlung", "Humboldt schrieb über zwanzig Jahre lang Briefe an Charlotte Diede, eine Frau, die er in seiner Jugend einmal kurz getroffen hatte. Sie wurden ein beliebtes Buch über Freundschaft, Schicksal und Lebenskunst."],
+  "Von guten Mächten": ["Dezember 1944", "Gedicht", "Bonhoeffer schrieb das Gedicht im Gestapo-Gefängnis in Berlin als Weihnachtsgruß an seine Verlobte Maria von Wedemeyer und seine Familie. Wenige Monate später wurde er hingerichtet. Heute wird es oft als Kirchenlied gesungen."],
+  "Der Idiot": ["1868 – 1869", "Roman", "Fürst Myschkin, gutmütig und naiv, kehrt nach Russland zurück und gerät in eine Welt aus Gier und Leidenschaft. Dostojewski wollte einen „vollkommen schönen Menschen“ darstellen. Der Satz über die Schönheit wird dem Fürsten von anderen zugeschrieben."],
+  "zugeschrieben": ["", "Zugeschriebenes Zitat", "Dieser Satz wird der Person häufig zugeschrieben und passt zu ihren Aussagen, eine eindeutige Erstquelle ist aber nicht belegt."],
+  "Interview, 1929": ["1929", "Interview", "Gespräch mit dem Journalisten George Sylvester Viereck, erschienen in der „Saturday Evening Post“ unter dem Titel „What Life Means to Einstein“. Einstein sagte darin, er sei Künstler genug, um frei aus seiner Fantasie zu schöpfen."],
+  "LIFE Magazine": ["1955", "Zeitschriftenbeitrag", "Kurz nach Einsteins Tod veröffentlichte das Magazin LIFE Erinnerungen von William Miller an ein Gespräch mit ihm. Darin rät Einstein, nie die heilige Neugier zu verlieren."],
+  "Hamlet": ["um 1600", "Tragödie", "Prinz Hamlet soll den Mord an seinem Vater rächen und zögert immer wieder. Den Satz sagt er zu Rosencrantz und Guildenstern, als er Dänemark ein Gefängnis nennt: Es liegt am Denken, nicht an den Dingen."],
+  "Devotions upon Emergent Occasions": ["1624", "Meditationen", "Donne schrieb diese Betrachtungen während einer lebensgefährlichen Krankheit. In Meditation XVII stehen auch die Worte „for whom the bell tolls“, die Hemingway später für einen Romantitel nutzte."],
+  "Auguries of Innocence": ["um 1803, veröffentlicht 1863", "Gedicht", "Ein Gedicht aus paarweise gereimten Versen über Unschuld und Grausamkeit. Die Anfangszeilen über die Welt im Sandkorn gehören zu den bekanntesten der englischen Lyrik."],
+  "Endymion": ["1818", "Versepos", "Ein langes Gedicht über den Hirten Endymion, der die Mondgöttin liebt. Der berühmte erste Vers über die ewige Freude an der Schönheit wurde später viel bekannter als das Gedicht selbst."],
+  "Self-Reliance": ["1841", "Essay", "Emersons berühmtester Essay: Vertraue dir selbst, folge deiner Intuition und nicht der Meinung der Masse. Er wurde zu einem Grundtext des amerikanischen Individualismus."],
+  "Circles": ["1841", "Essay", "Emerson beschreibt das Leben als immer weitere Kreise: Jede Erkenntnis wird von einer größeren umschlossen. Nichts ist endgültig, alles kann neu gedacht werden."],
+  "Experience": ["1844", "Essay", "Geschrieben nach dem Tod von Emersons fünfjährigem Sohn Waldo. Ein nachdenklicher Text darüber, wie schwer es ist, das Leben wirklich zu erfassen, und wie man trotzdem weiterlebt."],
+  "Walden": ["1854", "Erfahrungsbericht", "Thoreau beschreibt seine zwei Jahre in einer Hütte am Walden-See: einfach leben, selbst Bohnen anbauen, die Natur beobachten. Ein Klassiker über bewusstes, entschleunigtes Leben."],
+  "Song of Myself": ["1855", "Langgedicht", "Das Herzstück von „Leaves of Grass“. Whitman feiert sich selbst und zugleich alle Menschen, Körper und Seele, Stadt und Natur. Ohne Reim und festes Versmaß war es damals revolutionär."],
+  "Gedicht 254": ["um 1861", "Gedicht", "Eines von Dickinsons bekanntesten Gedichten; sie gab ihren Gedichten keine Titel, darum trägt es eine Nummer. Die Hoffnung erscheint als kleiner Vogel in der Seele, der singt, ohne je etwas zu verlangen."],
+  "Lady Windermere’s Fan": ["1892", "Komödie", "Wildes erste große Gesellschaftskomödie über Moral, Ruf und Doppelmoral in der Londoner Oberschicht. Den Satz über die Sterne sagt Lord Darlington."],
+  "A Room of One’s Own": ["1929", "Essay", "Auf Basis von Vorträgen in Cambridge. Woolf argumentiert, eine Frau brauche Geld und ein eigenes Zimmer, um schreiben zu können. Ein Grundtext feministischer Literaturkritik."],
+  "In Front of Your Nose": ["1946", "Essay", "Ein Zeitungsessay in der „Tribune“. Orwell zeigt, wie Menschen Offensichtliches übersehen, wenn es nicht zu ihren Überzeugungen passt."],
+  "The Fellowship of the Ring": ["1954", "Fantasy-Roman", "Der erste Band von „Der Herr der Ringe“, auf Deutsch „Die Gefährten“. Den Satz sagt Gandalf zu Frodo in den Minen von Moria, als Frodo wünscht, all das wäre nicht zu seiner Zeit geschehen."],
+  "Worstward Ho": ["1983", "Prosatext", "Einer von Becketts letzten Texten, sehr karg und rhythmisch. Die Zeile über das bessere Scheitern wurde später zum Motto von Künstlern, Sportlern und Gründern."],
+  "As Much Truth As One Can Bear": ["1962", "Essay", "Erschienen in der „New York Times Book Review“. Baldwin fordert, dass Schriftsteller der Wahrheit über ihr Land ins Gesicht sehen, gerade wenn sie wehtut."],
+  "Strength to Love": ["1963", "Predigtsammlung", "Auf Deutsch „Kraft zum Lieben“. Predigten über Liebe, Gewaltlosigkeit und Mut, entstanden mitten in der Bürgerrechtsbewegung."],
+  "The Summer Day": ["1990", "Gedicht", "Oliver beobachtet eine Heuschrecke, die Zucker aus ihrer Hand frisst, und fragt am Ende, was man mit seinem einen wilden, kostbaren Leben anfangen will."],
+  "The Writing Life": ["1989", "Essayband", "Dillard schreibt über das Schreiben: über Disziplin, Zweifel und darüber, wie unsere Tage unser Leben ausmachen."],
+  "The Left Hand of Darkness": ["1969", "Science-Fiction-Roman", "Auf Deutsch „Die linke Hand der Dunkelheit“. Ein Gesandter besucht den eisigen Planeten Winter, dessen Bewohner kein festes Geschlecht haben. Er gewann die beiden wichtigsten Science-Fiction-Preise."],
+  "Rede": ["1981", "Rede", "Aus einer Rede, die Morrison 1981 hielt. Sie erzählte darin, dass sie ihren ersten Roman schrieb, weil es das Buch, das sie lesen wollte, noch nicht gab."],
+  "A Burst of Light": ["1988", "Essayband", "Lorde schreibt über ihr Leben mit Krebs und über Selbstfürsorge als politischen Akt für Menschen, die die Gesellschaft übersieht."],
+  "Outlaw Culture": ["1994", "Essayband", "Essays über Popkultur, Film, Musik und Liebe. bell hooks verbindet Gesellschaftskritik mit der Frage, wie Liebe Herrschaft überwinden kann."],
+  "Contact": ["1985", "Science-Fiction-Roman", "Die Astronomin Ellie Arroway empfängt ein Signal von Außerirdischen. Sagans einziger Roman wurde 1997 mit Jodie Foster verfilmt."],
+  "Cargo Cult Science": ["1974", "Rede", "Feynmans Abschlussrede am Caltech. Er warnt vor Forschung, die nur so aussieht wie Wissenschaft, und fordert radikale Ehrlichkeit, vor allem sich selbst gegenüber."]
+};
+
+const $ = id => document.getElementById(id);
+const DAY = 864e5;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+// Aura-Stimmungen: Grundton (hell) + vier weiche Farben
+const MOODS = [
+  ["#f6f1ec", "#ffc6a8", "#d9c2f0", "#f7e1a6", "#f2b8c6"], // Pfirsich & Flieder
+  ["#eff0ea", "#b9cfae", "#e8d9b5", "#a9c6c9", "#d6e3c3"], // Salbei & Sand
+  ["#f5eff1", "#f2b8c6", "#b8cff2", "#f7d9c4", "#e0c8f0"], // Rosé & Himmel
+  ["#f1eff6", "#c8b6f2", "#b6e3d4", "#f2c6e0", "#b9c9f5"], // Flieder & Minze
+  ["#f7f0ea", "#f6b38e", "#f2a3b3", "#ffd99a", "#f4c3a1"], // Abendrot
+  ["#edf2f5", "#9fc4e6", "#b8e0e0", "#d7c8ee", "#c4d8f2"], // Meer
+  ["#f2f2ea", "#c6d8a0", "#f0e2b8", "#a7cdb8", "#e5e7b0"], // Matcha
+  ["#f6efe9", "#e9b8a4", "#c9b5a3", "#f1d3b8", "#d8a9a9"]  // Terrakotta & Ton
+];
+
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const order = Q.map((_, i) => i);
+(() => { const r = mulberry32(20261117); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } })();
+const mod = (n, m) => ((n % m) + m) % m;
+const dayKey = d => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY);
+const dateFor = off => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate() + off); };
+
+let offset = 0, current = 0;
+let favs = store.get("favs", []);
+const dark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+
+function fitQuote(text) {
+  const q = $("quote"), c = $("center");
+  const w = c.clientWidth;
+  let size = text.length < 60 ? 46 : text.length < 110 ? 38 : text.length < 160 ? 32 : 28;
+  size = Math.min(size, w / 7.2);
+  q.style.fontSize = size + "px";
+  while (c.scrollHeight > c.clientHeight + 1 && size > 18) { size -= 1.5; q.style.fontSize = size + "px"; }
+}
+
+function render(animate = true) {
+  const d = dateFor(offset), key = dayKey(d);
+  current = order[mod(key, order.length)];
+  const [text, author, source] = Q[current];
+  const m = MOODS[mod(key * 5, MOODS.length)], st = document.documentElement.style;
+  ["--c1", "--c2", "--c3", "--c4"].forEach((v, i) => st.setProperty(v, m[i + 1]));
+  if (!document.documentElement.dataset.theme && !dark()) st.setProperty("--bg", m[0]); else st.removeProperty("--bg");
+
+  const yday = Math.round((d - new Date(d.getFullYear(), 0, 1)) / DAY) + 1;
+  $("day").textContent = d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+  $("meta").textContent = "Tag " + yday + (offset === 0 ? " · Heute" : offset === -1 ? " · Gestern" : " · vor " + -offset + " Tagen");
+  $("quote").textContent = text;
+  $("author").textContent = author;
+  $("source").textContent = source;
+  fitQuote(text);
+
+  const isFav = favs.includes(current);
+  $("fav").setAttribute("aria-pressed", isFav);
+  $("heart").setAttribute("fill", isFav ? "currentColor" : "none");
+  $("next").disabled = offset >= 0;
+  if (animate) { const c = $("center"); c.classList.remove("fade"); void c.offsetWidth; c.classList.add("fade"); }
+}
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 1500); }
+
+function renderFavs() {
+  const box = $("favs"); box.innerHTML = "";
+  if (!favs.length) { box.innerHTML = '<p class="empty">Noch leer. Tippe beim Zitat auf das Herz, dann sammelt es sich hier.</p>'; return; }
+  [...favs].reverse().forEach(idx => {
+    const [text, author] = Q[idx];
+    const el = document.createElement("article"); el.className = "item";
+    el.innerHTML = '<p></p><div class="row"><span></span><button type="button">Entfernen</button></div>';
+    el.querySelector("p").textContent = text;
+    el.querySelector("span").textContent = author;
+    el.querySelector("button").onclick = () => { favs = favs.filter(f => f !== idx); store.set("favs", favs); renderFavs(); render(false); };
+    box.appendChild(el);
+  });
+}
+
+function go(delta) { if (offset + delta > 0) return; offset += delta; render(); }
+$("prev").onclick = () => go(-1);
+$("next").onclick = () => go(1);
+$("fav").onclick = () => {
+  favs = favs.includes(current) ? favs.filter(f => f !== current) : [...favs, current];
+  store.set("favs", favs); render(false); toast(favs.includes(current) ? "Gemerkt" : "Entfernt");
+};
+$("copy").onclick = () => {
+  const [text, author] = Q[current], s = "„" + text + "“ – " + author;
+  const fail = () => toast("Nicht möglich");
+  if (navigator.clipboard) navigator.clipboard.writeText(s).then(() => toast("Kopiert"), fail); else fail();
+};
+$("list").onclick = () => { renderFavs(); $("sheet").hidden = false; };
+$("close").onclick = () => { $("sheet").hidden = true; };
+
+
+/* ---------- Infos zu Person und Werk ---------- */
+const workKey = src => S[src] ? src : src.split(",")[0].trim();
+const chip = t => { const s = document.createElement("span"); s.className = "chip"; s.textContent = t; return s; };
+let lastFocus = null;
+
+function openInfo(kind) {
+  const [text, author, source] = Q[current];
+  const title = $("info-title"), meta = $("info-meta"), more = $("info-more");
+  meta.innerHTML = ""; more.innerHTML = "";
+  if (kind === "author") {
+    const a = A[author];
+    $("info-kicker").textContent = "Person";
+    title.textContent = author; title.classList.remove("work");
+    if (a) { meta.append(chip(a[0]), chip(a[1])); $("info-text").textContent = a[2]; }
+    else $("info-text").textContent = "Zu dieser Person sind noch keine Infos hinterlegt.";
+    const others = Q.map((q, i) => [q, i]).filter(([q, i]) => q[1] === author && i !== current);
+    more.hidden = !others.length;
+    if (others.length) {
+      const h = document.createElement("h3"); h.textContent = others.length === 1 ? "Ein weiterer Gedanke" : others.length + " weitere Gedanken"; more.append(h);
+      others.forEach(([q]) => {
+        const b = document.createElement("div"); b.className = "more-q";
+        b.textContent = q[0]; const s = document.createElement("span"); s.textContent = q[2]; b.append(s); more.append(b);
+      });
+    }
+  } else {
+    const w = S[workKey(source)];
+    $("info-kicker").textContent = "Werk";
+    const shown = source.replace(/^nach Platon, /, "").replace(/^zu Alexander dem Großen.*/, "Anekdote über Alexander");
+    title.textContent = shown; title.classList.add("work");
+    meta.append(chip(author));
+    if (w) { if (w[0]) meta.append(chip(w[0])); meta.append(chip(w[1])); $("info-text").textContent = w[2]; }
+    else $("info-text").textContent = "Zu diesem Werk sind noch keine Infos hinterlegt.";
+    more.hidden = true;
+  }
+  lastFocus = document.activeElement;
+  $("info").hidden = false;
+  $("info").querySelector(".info-card").scrollTop = 0;
+  $("info-close").focus({ preventScroll: true });
+}
+function closeInfo() { $("info").hidden = true; lastFocus?.focus?.({ preventScroll: true }); }
+$("author").onclick = () => openInfo("author");
+$("source").onclick = () => openInfo("work");
+$("info-close").onclick = closeInfo;
+$("info-backdrop").onclick = closeInfo;
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("info").hidden) closeInfo(); else if (!$("sheet").hidden) $("sheet").hidden = true; } });
+
+// Nach unten wischen schließt die Karte
+let iy = null;
+$("info").addEventListener("touchstart", e => { const c = $("info").querySelector(".info-card"); iy = c.scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
+$("info").addEventListener("touchend", e => { if (iy !== null && e.changedTouches[0].clientY - iy > 80) closeInfo(); iy = null; });
+
+let sx = null, sy = null;
+$("stage").addEventListener("touchstart", e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+$("stage").addEventListener("touchend", e => {
+  if (sx === null || !$("info").hidden) return;
+  const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx > 0 ? -1 : 1);
+  sx = null;
+});
+
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => render(false), 120); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => render(false));
+let lastKey = dayKey(new Date());
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && dayKey(new Date()) !== lastKey) { lastKey = dayKey(new Date()); offset = 0; render(); }
+});
+document.fonts?.ready.then(() => render(false));
+render();
+</script>
+
+</body>
+</html>
