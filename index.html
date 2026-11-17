@@ -111,6 +111,21 @@ blockquote {
 .ic:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 1px; }
 .ic[aria-pressed="true"] { color: #d0506b; }
 .sep { width: 1px; height: 20px; background: var(--glass-line); margin: 0 2px; }
+button { touch-action: manipulation; }
+
+/* Zurück zu heute */
+.bottom { position: relative; justify-self: center; display: flex; justify-content: center; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px 0 13px; cursor: pointer;
+  font: 500 11px var(--font-ui); letter-spacing: .22em; text-transform: uppercase; color: var(--ink);
+  background: var(--glass); border: 1px solid var(--glass-line); border-radius: 999px;
+  backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+.pill svg { width: 15px; height: 15px; }
+.pill:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+.today-pill { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); white-space: nowrap; animation: pop .35s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes pop { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.date { cursor: pointer; }
 
 /* Merkliste */
 .sheet {
@@ -118,13 +133,17 @@ blockquote {
   background: color-mix(in srgb, var(--bg) 72%, transparent);
   backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
   padding-left: max(28px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px));
-  padding-block: calc(22px + env(safe-area-inset-top, 0px)) calc(150px + 2 * env(safe-area-inset-bottom, 0px));
+  padding-block: calc(40px + env(safe-area-inset-top, 0px)) calc(230px + 2 * env(safe-area-inset-bottom, 0px));
   animation: up .45s cubic-bezier(.2, .8, .2, 1) both;
 }
 .sheet[hidden] { display: none; }
 @keyframes up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 .sheet-inner { max-width: 600px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.sheet-close {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 6;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px)); min-height: 50px; padding: 0 24px;
+}
 .sheet-head h2 { margin: 0; font-family: var(--font-quote); font-style: italic; font-weight: 400; font-size: 34px; }
 .item { padding: 22px 0; border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); display: flex; flex-direction: column; gap: 10px; }
 .item p { margin: 0; font-family: var(--font-quote); font-size: 23px; line-height: 1.25; }
@@ -206,6 +225,8 @@ blockquote {
     <button class="source tap" id="source" aria-haspopup="dialog">Was ist Aufklärung?</button>
   </section>
 
+  <div class="bottom">
+  <button class="pill today-pill" id="today" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>Zu heute</button>
   <nav class="dock">
     <button class="ic" id="prev" aria-label="Vorheriger Tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
     <span class="sep"></span>
@@ -215,6 +236,7 @@ blockquote {
     <span class="sep"></span>
     <button class="ic" id="next" aria-label="Nächster Tag" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
   </nav>
+  </div>
 </main>
 
 <div class="sheet" id="sheet" hidden>
@@ -225,6 +247,7 @@ blockquote {
     <div id="favs"></div>
   </div>
 </div>
+<button class="pill sheet-close" id="close2" hidden>Schließen</button>
 <div class="info" id="info" hidden>
   <div class="info-backdrop" id="info-backdrop"></div>
   <section class="info-card" role="dialog" aria-modal="true" aria-labelledby="info-title">
@@ -624,6 +647,7 @@ function render(animate = true) {
   $("fav").setAttribute("aria-pressed", isFav);
   $("heart").setAttribute("fill", isFav ? "currentColor" : "none");
   $("next").disabled = offset >= 0;
+  $("today").hidden = offset === 0;
   if (animate) { const c = $("center"); c.classList.remove("fade"); void c.offsetWidth; c.classList.add("fade"); }
 }
 
@@ -655,8 +679,17 @@ $("copy").onclick = () => {
   const fail = () => toast("Nicht möglich");
   if (navigator.clipboard) navigator.clipboard.writeText(s).then(() => toast("Kopiert"), fail); else fail();
 };
-$("list").onclick = () => { renderFavs(); $("sheet").hidden = false; };
-$("close").onclick = () => { $("sheet").hidden = true; };
+$("list").onclick = () => { renderFavs(); $("sheet").hidden = false; $("close2").hidden = false; $("sheet").scrollTop = 0; };
+const closeSheet = () => { $("sheet").hidden = true; $("close2").hidden = true; };
+$("close2").onclick = closeSheet;
+// Nach unten wischen schließt die Merkliste
+let shy = null;
+$("sheet").addEventListener("touchstart", e => { shy = $("sheet").scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
+$("sheet").addEventListener("touchend", e => { if (shy !== null && e.changedTouches[0].clientY - shy > 90) closeSheet(); shy = null; });
+const toToday = () => { if (offset !== 0) { offset = 0; render(); } };
+$("today").onclick = toToday;
+document.querySelector(".date").onclick = toToday;
+$("close").onclick = () => closeSheet();
 
 
 /* ---------- Infos zu Person und Werk ---------- */
@@ -703,7 +736,7 @@ $("author").onclick = () => openInfo("author");
 $("source").onclick = () => openInfo("work");
 $("info-close").onclick = closeInfo;
 $("info-backdrop").onclick = closeInfo;
-document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("info").hidden) closeInfo(); else if (!$("sheet").hidden) $("sheet").hidden = true; } });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("info").hidden) closeInfo(); else if (!$("sheet").hidden) closeSheet(); } });
 
 // Nach unten wischen schließt die Karte
 let iy = null;
