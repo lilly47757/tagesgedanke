@@ -54,7 +54,7 @@ body {
 }
 
 /* Aura */
-.aura { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+.aura { position: fixed; inset: 0 0 calc(-1 * (env(safe-area-inset-bottom, 0px) + 120px)) 0; overflow: hidden; z-index: 0; pointer-events: none; }
 .blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: var(--blob-op); transition: background-color 1.2s ease; will-change: transform; }
 .b1 { width: 75vmax; height: 75vmax; left: -30vmax; top: -25vmax; background: var(--c1); animation: drift1 26s ease-in-out infinite alternate; }
 .b2 { width: 65vmax; height: 65vmax; right: -28vmax; top: 10vh; background: var(--c2); animation: drift2 32s ease-in-out infinite alternate; }
@@ -114,11 +114,11 @@ blockquote {
 
 /* Merkliste */
 .sheet {
-  position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column; overflow-y: auto;
+  position: fixed; inset: 0 0 calc(-1 * (env(safe-area-inset-bottom, 0px) + 120px)) 0; z-index: 5; display: flex; flex-direction: column; overflow-y: auto;
   background: color-mix(in srgb, var(--bg) 72%, transparent);
   backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
   padding-left: max(28px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px));
-  padding-block: calc(22px + env(safe-area-inset-top, 0px)) calc(30px + env(safe-area-inset-bottom, 0px));
+  padding-block: calc(22px + env(safe-area-inset-top, 0px)) calc(150px + 2 * env(safe-area-inset-bottom, 0px));
   animation: up .45s cubic-bezier(.2, .8, .2, 1) both;
 }
 .sheet[hidden] { display: none; }
@@ -156,7 +156,7 @@ blockquote {
 /* Infokarte */
 .info { position: fixed; inset: 0; z-index: 8; display: flex; align-items: flex-end; justify-content: center; }
 .info[hidden] { display: none; }
-.info-backdrop { position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 35%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: fadein .3s ease both; }
+.info-backdrop { position: absolute; inset: 0 0 calc(-1 * (env(safe-area-inset-bottom, 0px) + 120px)) 0; background: color-mix(in srgb, var(--bg) 35%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: fadein .3s ease both; }
 .info-card {
   position: relative; width: 100%; max-width: 560px; box-sizing: border-box; max-height: 82vh; overflow-y: auto;
   margin: 0 max(10px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
