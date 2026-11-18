@@ -65,7 +65,7 @@ body {
 }
 
 /* Aura */
-.aura { position: fixed; inset: 0 0 calc(-1 * (env(safe-area-inset-bottom, 0px) + 120px)) 0; overflow: hidden; z-index: 0; pointer-events: none; }
+.aura { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
 .blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: var(--blob-op); transition: background-color 1.2s ease; will-change: transform; }
 .b1 { width: 75vmax; height: 75vmax; left: -30vmax; top: -25vmax; background: var(--c1); animation: drift1 26s ease-in-out infinite alternate; }
 .b2 { width: 65vmax; height: 65vmax; right: -28vmax; top: 10vh; background: var(--c2); animation: drift2 32s ease-in-out infinite alternate; }
@@ -80,7 +80,7 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 92%); mask-image: linear-gradient(to bottom, transparent, #000 92%);
 }
 .grain {
-  position: fixed; inset: -50%; z-index: 1; pointer-events: none; opacity: .16; mix-blend-mode: overlay;
+  position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: .16; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 
@@ -145,10 +145,11 @@ button { touch-action: manipulation; }
 
 /* Merkliste */
 .sheet {
-  position: fixed; inset: 0 0 calc(-1 * (env(safe-area-inset-bottom, 0px) + 120px)) 0; z-index: 5; display: flex; flex-direction: column; overflow-y: auto;
-  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  position: absolute; inset: 0; height: 100%; box-sizing: border-box; z-index: 5; display: flex; flex-direction: column;
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--c1) calc(var(--blob-op) * 30%), var(--bg)), var(--bg) 55%, color-mix(in srgb, var(--c2) calc(var(--blob-op) * 30%), var(--bg)));
   padding-left: max(28px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px));
-  padding-block: calc(40px + env(safe-area-inset-top, 0px)) calc(230px + 2 * env(safe-area-inset-bottom, 0px));
+  padding-block: calc(40px + env(safe-area-inset-top, 0px)) 0;
   animation: up .45s cubic-bezier(.2, .8, .2, 1) both;
 }
 .sheet[hidden] { display: none; }
@@ -157,9 +158,10 @@ button { touch-action: manipulation; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .version { margin: 28px 0 0; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); text-align: center; }
 .sheet-close {
-  position: fixed; left: 50%; transform: translateX(-50%); z-index: 6;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px)); min-height: 50px; padding: 0 24px;
+  position: sticky; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); align-self: center; flex: none;
+  margin: auto 0 calc(18px + env(safe-area-inset-bottom, 0px)); min-height: 50px; padding: 0 24px; z-index: 1;
 }
+.sheet-inner { flex: none; padding-bottom: 40px; }
 .sheet-head h2 { margin: 0; font-family: var(--font-quote); font-style: italic; font-weight: 400; font-size: 34px; }
 .item { padding: 22px 0; border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); display: flex; flex-direction: column; gap: 10px; }
 .item p { margin: 0; font-family: var(--font-quote); font-size: 23px; line-height: 1.25; }
@@ -189,9 +191,9 @@ button { touch-action: manipulation; }
 .source.tap { margin-top: -22px; }
 
 /* Infokarte */
-.info { position: fixed; inset: 0; z-index: 8; display: flex; align-items: flex-end; justify-content: center; }
+.info { position: absolute; inset: 0; height: 100%; z-index: 8; display: flex; align-items: flex-end; justify-content: center; }
 .info[hidden] { display: none; }
-.info-backdrop { position: absolute; inset: 0 0 calc(-1 * (env(safe-area-inset-bottom, 0px) + 120px)) 0; background: color-mix(in srgb, var(--bg) 35%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: fadein .3s ease both; }
+.info-backdrop { position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 35%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: fadein .3s ease both; }
 .info-card {
   position: relative; width: 100%; max-width: 560px; box-sizing: border-box; max-height: 82vh; overflow-y: auto;
   margin: 0 max(10px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
@@ -264,8 +266,8 @@ button { touch-action: manipulation; }
     <div id="favs"></div>
     <p class="version" id="version"></p>
   </div>
+  <button class="pill sheet-close" id="close2">Schließen</button>
 </div>
-<button class="pill sheet-close" id="close2" hidden>Schließen</button>
 <div class="info" id="info" hidden>
   <div class="info-backdrop" id="info-backdrop"></div>
   <section class="info-card" role="dialog" aria-modal="true" aria-labelledby="info-title">
@@ -697,8 +699,8 @@ $("copy").onclick = () => {
   const fail = () => toast("Nicht möglich");
   if (navigator.clipboard) navigator.clipboard.writeText(s).then(() => toast("Kopiert"), fail); else fail();
 };
-$("list").onclick = () => { renderFavs(); $("sheet").hidden = false; $("close2").hidden = false; $("sheet").scrollTop = 0; };
-const closeSheet = () => { $("sheet").hidden = true; $("close2").hidden = true; };
+$("list").onclick = () => { renderFavs(); $("sheet").hidden = false; $("sheet").scrollTop = 0; };
+const closeSheet = () => { $("sheet").hidden = true; };
 // Zusätzlich zum Klick direkt auf das Loslassen des Fingers reagieren
 function onTap(el, fn) {
   el.addEventListener("click", fn);
@@ -786,7 +788,7 @@ document.fonts?.ready.then(() => render(false));
 render();
 
 /* ---------- Updates ---------- */
-const APP_VERSION = "6";
+const APP_VERSION = "7";
 $("version").textContent = "Version " + APP_VERSION;
 async function checkUpdate() {
   if (location.protocol !== "https:") return;
