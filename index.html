@@ -46,7 +46,9 @@ body { margin: 0; }
   --glass: rgba(255, 255, 255, .08); --glass-line: rgba(255, 255, 255, .16); --blob-op: .42; color-scheme: dark;
 }
 
-html, body { height: 100%; }
+html, body { height: var(--app-h, 100%); }
+html { overflow: hidden; overscroll-behavior: none; }
+body { position: relative; overscroll-behavior: none; }
 /* Grundfläche unter allem: iOS zeigt sie im Vollbild unten am Home-Balken, wenn es die Bildschirmhöhe zu kurz berechnet.
    Sie trägt deshalb die unteren Aura-Farben des Tages und reicht weit über den Seitenrand hinaus. */
 html {
@@ -65,7 +67,7 @@ body {
 }
 
 /* Aura */
-.aura { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+.aura { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
 .blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: var(--blob-op); transition: background-color 1.2s ease; will-change: transform; }
 .b1 { width: 75vmax; height: 75vmax; left: -30vmax; top: -25vmax; background: var(--c1); animation: drift1 26s ease-in-out infinite alternate; }
 .b2 { width: 65vmax; height: 65vmax; right: -28vmax; top: 10vh; background: var(--c2); animation: drift2 32s ease-in-out infinite alternate; }
@@ -75,12 +77,12 @@ body {
 @keyframes drift2 { to { transform: translate(-10vmax, 8vmax) scale(.92); } }
 @keyframes drift3 { to { transform: translate(12vmax, -8vmax) scale(1.08); } }
 .floor { /* weicher Übergang am unteren Rand in die Grundfläche */
-  position: fixed; left: 0; right: 0; bottom: 0; height: 34vh; z-index: 0; pointer-events: none;
+  position: absolute; left: 0; right: 0; bottom: 0; height: 34%; z-index: 0; pointer-events: none;
   background: linear-gradient(90deg, var(--c3-soft) 0%, var(--c2-soft) 55%, var(--c4-soft) 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 92%); mask-image: linear-gradient(to bottom, transparent, #000 92%);
 }
 .grain {
-  position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: .16; mix-blend-mode: overlay;
+  position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .16; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 
@@ -609,6 +611,27 @@ const S = {
 };
 
 const $ = id => document.getElementById(id);
+
+/* ---------- Bildschirmhöhe ----------
+   iOS meldet im Vollbild (Home-Bildschirm-App) zeitweise eine um die Statusleiste zu kurze Höhe.
+   Die echte Gerätehöhe (screen) stimmt immer – daran richtet sich die ganze App aus. */
+const isStandalone = () => navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+function fitScreen() {
+  let h = innerHeight;
+  if (isStandalone()) {
+    const landscape = innerWidth > innerHeight;
+    const sh = landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+    h = Math.max(h, sh);
+  }
+  document.documentElement.style.setProperty("--app-h", h + "px");
+  if (scrollY) scrollTo(0, 0);
+}
+fitScreen();
+["resize", "orientationchange", "pageshow", "focus"].forEach(ev => addEventListener(ev, () => { fitScreen(); setTimeout(fitScreen, 250); }));
+visualViewport?.addEventListener("resize", fitScreen);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { fitScreen(); setTimeout(fitScreen, 300); } });
+// Nach jedem Tippen kurz nachmessen, falls iOS die Höhe dabei umschaltet
+document.addEventListener("touchend", () => setTimeout(fitScreen, 60), { passive: true });
 const DAY = 864e5;
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -788,7 +811,7 @@ document.fonts?.ready.then(() => render(false));
 render();
 
 /* ---------- Updates ---------- */
-const APP_VERSION = "7";
+const APP_VERSION = "8";
 $("version").textContent = "Version " + APP_VERSION;
 async function checkUpdate() {
   if (location.protocol !== "https:") return;
